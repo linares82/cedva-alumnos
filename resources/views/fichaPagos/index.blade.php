@@ -72,11 +72,13 @@
                         </thead>
                         <tbody>
                             @php
-                            $adeudos=\App\Adeudo::where('combinacion_cliente_id',$inscripcion->combinacion_cliente_id)->get();
+                            $adeudos=\App\Adeudo::where('combinacion_cliente_id',$inscripcion->combinacion_cliente_id)->with('cajaConcepto')->with('pagoOnLine')->get();
                             $i=0;
+                            $inscripcion->load('lectivo');
                             @endphp
 
                             @foreach($adeudos as $adeudo)
+
                             @if($adeudo->cajaConcepto->bnd_mensualidad==1)
                             <tr>
                                 <td>{{ ++$i }}</td><td>{{ $inscripcion->lectivo->name }}</td>

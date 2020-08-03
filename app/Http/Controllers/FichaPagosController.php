@@ -29,7 +29,11 @@ class FichaPagosController extends Controller
     public function index()
     {
         $cliente = Cliente::where('matricula', Auth::user()->name)->first();
-        $adeudos = Adeudo::where('cliente_id', $cliente->id)->get();
+        /*$adeudos = Adeudo::where('adeudos.cliente_id', $cliente->id)
+            ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
+            ->whereNull('cc.deleted_at')
+            ->whereNull('adeudos.deleted_at')
+            ->get();*/
         $this->actualizarAdeudosPagos($cliente->id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)->get();
 
@@ -38,9 +42,19 @@ class FichaPagosController extends Controller
 
     public function actualizarAdeudosPagos($cliente)
     {
-        $adeudos = Adeudo::where('cliente_id', $cliente)->whereNull('deleted_at')->get();
+        $adeudos = Adeudo::select('adeudos.*')->where('adeudos.cliente_id', $cliente)
+            ->whereNull('adeudos.deleted_at')
+            ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
+            ->whereNull('cc.deleted_at')
+            ->with('caja')
+            ->with('cliente')
+            ->with('pagoOnLine')
+            ->get();
+        //dd($adeudos->toArray());
         foreach ($adeudos as $adeudo) {
-            $adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
+            //dd($adeudo->pagoOnLine);
+            $adeudo_pago_online = optional($adeudo)->pagoOnLine;
+            //$adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
             if ($adeudo->pagado_bnd == 1) {
 
                 if (is_null($adeudo_pago_online)) {
@@ -79,22 +93,27 @@ class FichaPagosController extends Controller
                     $input['usu_mod_id'] = 1;
                     AdeudoPagoOnLine::create($input);
                 } else {
-                    //$input['matricula'] = $adeudo->cliente->matricula;
-                    //$input['cliente_id'] = $adeudo->cliente->id;
-                    //$input['adeudo_id'] = $adeudo->id;
-                    //dd($adeudo);
-                    $datos_calculados = $this->predefinido($adeudo->id);
-                    //dd($datos_calculados);
-                    $input['subtotal'] = $datos_calculados['subtotal'];
-                    $input['descuento'] = $datos_calculados['descuento'];
-                    $input['recargo'] = $datos_calculados['recargo'];
-                    $input['total'] = $datos_calculados['total'];
-                    $input['fecha_limite'] = $datos_calculados['fecha_limite'];
-                    //$input['cliente_id'] = $adeudo->cliente_id;
-                    //$input['usu_alta_id'] = 1;
-                    //$input['usu_mod_id'] = 1;
-                    $adeudo_pago_online->update($input);
-                    //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
+                    $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+                    //dd($hoy->toDateString());
+                    //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
+                    if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
+                        //$input['matricula'] = $adeudo->cliente->matricula;
+                        //$input['cliente_id'] = $adeudo->cliente->id;
+                        //$input['adeudo_id'] = $adeudo->id;
+                        //dd($adeudo);
+                        $datos_calculados = $this->predefinido($adeudo->id);
+                        //dd($datos_calculados);
+                        $input['subtotal'] = $datos_calculados['subtotal'];
+                        $input['descuento'] = $datos_calculados['descuento'];
+                        $input['recargo'] = $datos_calculados['recargo'];
+                        $input['total'] = $datos_calculados['total'];
+                        $input['fecha_limite'] = $datos_calculados['fecha_limite'];
+                        //$input['cliente_id'] = $adeudo->cliente_id;
+                        //$input['usu_alta_id'] = 1;
+                        //$input['usu_mod_id'] = 1;
+                        $adeudo_pago_online->update($input);
+                        //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
+                    }
                 }
             }
         }
@@ -102,32 +121,32 @@ class FichaPagosController extends Controller
 
     public function predefinido($adeudo_tomado)
     {
-        $adeudo = Adeudo::find($adeudo_tomado);
-        $conceptosValidos = $adeudo->cliente->plantel->conceptoMultipagos->toArray();
+        $adeudo = Adeudo::with('planPagoLn')->find($adeudo_tomado);
+        //$conceptosValidos = $adeudo->cliente->plantel->conceptoMultipagos->toArray();
         //dd($conceptosValidos);
 
         $adeudos = Adeudo::where('id', '=', $adeudo_tomado)->get();
         //dd($adeudos);
 
-        $cliente = Cliente::find($adeudo->cliente_id);
-        $cajas = Caja::select('cajas.consecutivo as caja', 'cajas.fecha', 'ln.caja_concepto_id as concepto_id', 'cc.name as concepto', 'ln.total', 'st.name as estatus')
+        $cliente = Cliente::with('autorizacionBecas')->find($adeudo->cliente_id);
+        /*$cajas = Caja::select('cajas.consecutivo as caja', 'cajas.fecha', 'ln.caja_concepto_id as concepto_id', 'cc.name as concepto', 'ln.total', 'st.name as estatus')
             ->join('caja_lns as ln', 'ln.caja_id', '=', 'cajas.id')
             ->join('caja_conceptos as cc', 'cc.id', '=', 'ln.caja_concepto_id')
             ->join('st_cajas as st', 'st.id', '=', 'cajas.st_caja_id')
             ->where('cliente_id', $cliente->id)
             ->whereNull('cajas.deleted_at')
             ->whereNull('ln.deleted_at')
-            ->get();
+            ->get();*/
         //dd($adeudos->toArray());
 
-        $subtotal = 0;
-        $recargo = 0;
-        $descuento = 0;
+        //$subtotal = 0;
+        //$recargo = 0;
+        //$descuento = 0;
         //dd($adeudos->toArray());
 
         foreach ($adeudos as $adeudo) {
 
-            $existe_linea = CajaLn::where('adeudo_id', '=', $adeudo->id)->first();
+            //$existe_linea = CajaLn::where('adeudo_id', '=', $adeudo->id)->first();
             //dd($existe_linea->toArray());
             //if (!is_object($existe_linea)) {
             //$adeudo->caja_id = $caja->id;
