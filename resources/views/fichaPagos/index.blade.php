@@ -119,6 +119,8 @@
                                     @endif
                                 </td>
                             </tr>
+                            @else
+                            Sin información encontrada, favor de acudir a su plantel de inscripcion.
                             @endif
                             @endforeach
 
