@@ -10,7 +10,15 @@
 | contains the "web" middleware group. Now create something great!
 |
 */
-
+\Event::listen('Illuminate\Database\Events\QueryExecuted', function ($query) {
+    //echo'<pre>';
+    //var_dump($query->sql);
+    //var_dump($query->bindings);
+    //var_dump($query->time);
+    //echo'</pre>';
+    // Log::info($query->sql);
+    //Log::info($query->bindings);
+});
 
 
 Route::get('/home', 'HomeController@index')

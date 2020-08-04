@@ -34,15 +34,21 @@ class FichaPagosController extends Controller
             ->whereNull('cc.deleted_at')
             ->whereNull('adeudos.deleted_at')
             ->get();*/
-        $this->actualizarAdeudosPagos($cliente->id);
+        $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)->get();
 
         return view('fichaPagos.index', compact('adeudos', 'cliente', 'adeudo_pago_online'));
     }
 
-    public function actualizarAdeudosPagos($cliente)
+    public function actualizarAdeudosPagos($cliente, $plantel)
     {
-        $adeudos = Adeudo::select('adeudos.*')->where('adeudos.cliente_id', $cliente)
+
+        $plantel = Plantel::find($plantel);
+        $conceptosValidos = $plantel->conceptoMultipagos->pluck('id');
+        $adeudos = Adeudo::select('adeudos.*')
+            ->join('caja_conceptos as cajaCon', 'cajaCon.id', '=', 'adeudos.caja_concepto_id')
+            ->whereIn('cajaCon.cve_multipagos', $conceptosValidos)
+            ->where('adeudos.cliente_id', $cliente)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->whereNull('cc.deleted_at')
@@ -122,36 +128,15 @@ class FichaPagosController extends Controller
     public function predefinido($adeudo_tomado)
     {
         $adeudo = Adeudo::with('planPagoLn')->find($adeudo_tomado);
-        //$conceptosValidos = $adeudo->cliente->plantel->conceptoMultipagos->toArray();
         //dd($conceptosValidos);
 
         $adeudos = Adeudo::where('id', '=', $adeudo_tomado)->get();
         //dd($adeudos);
 
         $cliente = Cliente::with('autorizacionBecas')->find($adeudo->cliente_id);
-        /*$cajas = Caja::select('cajas.consecutivo as caja', 'cajas.fecha', 'ln.caja_concepto_id as concepto_id', 'cc.name as concepto', 'ln.total', 'st.name as estatus')
-            ->join('caja_lns as ln', 'ln.caja_id', '=', 'cajas.id')
-            ->join('caja_conceptos as cc', 'cc.id', '=', 'ln.caja_concepto_id')
-            ->join('st_cajas as st', 'st.id', '=', 'cajas.st_caja_id')
-            ->where('cliente_id', $cliente->id)
-            ->whereNull('cajas.deleted_at')
-            ->whereNull('ln.deleted_at')
-            ->get();*/
-        //dd($adeudos->toArray());
-
-        //$subtotal = 0;
-        //$recargo = 0;
-        //$descuento = 0;
         //dd($adeudos->toArray());
 
         foreach ($adeudos as $adeudo) {
-
-            //$existe_linea = CajaLn::where('adeudo_id', '=', $adeudo->id)->first();
-            //dd($existe_linea->toArray());
-            //if (!is_object($existe_linea)) {
-            //$adeudo->caja_id = $caja->id;
-            //$adeudo->save();
-            //$caja_ln['caja_id'] = $caja->id;
             $caja_ln['caja_concepto_id'] = $adeudo->caja_concepto_id;
             $caja_ln['subtotal'] = $adeudo->monto;
             $caja_ln['total'] = 0;
@@ -207,7 +192,8 @@ class FichaPagosController extends Controller
                 //inscripcion del cliente
                 //********************************* */
                 try {
-                    $promociones = PromoPlanLn::where('plan_pago_ln_id', $adeudo->plan_pago_ln_id)->get();
+                    $promociones = $adeudo->planPagoLn->promoPlanLns;
+                    //PromoPlanLn::where('plan_pago_ln_id', $adeudo->plan_pago_ln_id)->get();
                     $caja_ln['promo_plan_ln_id'] = 0;
                     //if ($beca_a == 0 and $adeudo->bnd_eximir_descuentos == 0) {
                     if ($adeudo->bnd_eximir_descuentos == 0 or is_null($adeudo->bnd_eximir_descuentos)) {
@@ -397,8 +383,8 @@ class FichaPagosController extends Controller
         $datos = $request->all();
         $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
         $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
-        $forma_pagos = $plantel->formaPagos()->whereNotNull('cve_multipagos')->pluck('name', 'id');
-        //dd($adeudo_pago_online);
+        $forma_pagos = $plantel->formaPagos()->whereNull('forma_pagos.cve_multipagos')->pluck('name', 'id');
+
         return view('fichaPagos.detalle', compact('adeudo_pago_online', 'forma_pagos'));
     }
 
@@ -406,7 +392,11 @@ class FichaPagosController extends Controller
     {
         $datos = $request->all();
         //dd($datos);
-        $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
+        $adeudo_pago_online = AdeudoPagoOnLine::with('cliente')
+            ->with('caja')
+            ->with('pago')
+            ->with('peticionMultipagos')
+            ->find($datos['adeudo_pago_online_id']);
         $plantel = Plantel::find($adeudo_pago_online->plantel_id);
 
         //Se crea registro de caja si no tiene
@@ -432,7 +422,8 @@ class FichaPagosController extends Controller
             $adeudo->caja_id = $caja->id;
             $adeudo->save();
         } else {
-            $caja = Caja::find($adeudo_pago_online->caja_id);
+            $caja = $adeudo_pago_online->caja;
+            //Caja::find($adeudo_pago_online->caja_id);
             $inputCaja['subtotal'] = $adeudo_pago_online->subtotal;
             $inputCaja['descuento'] = $adeudo_pago_online->descuento;
             $inputCaja['recargo'] = $adeudo_pago_online->recargo;
@@ -458,7 +449,8 @@ class FichaPagosController extends Controller
             $adeudo_pago_online->caja_ln_id = $cajaLn->id;
             $adeudo_pago_online->save();
         } else {
-            $cajaLn = CajaLn::find($adeudo_pago_online->caja_ln_id);
+            $cajaLn = $adeudo_pago_online->cajaLn;
+            //CajaLn::find($adeudo_pago_online->caja_ln_id);
             $inputCajaLn['subtotal'] = $adeudo_pago_online->subtotal;
             $inputCajaLn['descuento'] = $adeudo_pago_online->descuento;
             $inputCajaLn['recargo'] = $adeudo_pago_online->recargo;
@@ -495,7 +487,8 @@ class FichaPagosController extends Controller
             $adeudo_pago_online->pago_id = $pago->id;
             $adeudo_pago_online->save();
         } else {
-            $pago = Pago::find($adeudo_pago_online->pago_id);
+            $pago = $adeudo_pago_online->pago;
+            //Pago::find($adeudo_pago_online->pago_id);
             $inputPago['monto'] = $caja->total;
             $inputPago['fecha'] = $caja->fecha;
             $inputPago['forma_pago_id'] = $caja->forma_pago_id;
@@ -539,7 +532,8 @@ class FichaPagosController extends Controller
             $adeudo_pago_online->peticion_multipago_id = $peticion_multipagos->id;
             $adeudo_pago_online->save();
         } else {
-            $adeudo_pago_online = PeticionMultipago::find($adeudo_pago_online->peticion_multipago_id);
+            $adeudo_pago_online = $adeudo_pago_online->peticionMultipago;
+            //PeticionMultipago::find($adeudo_pago_online->peticion_multipago_id);
 
             $datosMultipagos['mp_account'] = 6683;
             $datosMultipagos['mp_product'] = $cajaLn->cajaConcepto->cve_multipagos;

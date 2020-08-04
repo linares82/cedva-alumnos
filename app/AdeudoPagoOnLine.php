@@ -40,4 +40,24 @@ class AdeudoPagoOnLine extends Model
     {
         return $this->belongsTo('App\Adeudo');
     }
+
+    public function caja()
+    {
+        return $this->belongsTo('App\Caja');
+    }
+
+    public function cajaLn()
+    {
+        return $this->belongsTo('App\CajaLn');
+    }
+
+    public function peticionMultipago()
+    {
+        return $this->belongsTo('App\PeticionMultipago');
+    }
+
+    public function plantel()
+    {
+        return $this->belongsTo('App\Plantel');
+    }
 }

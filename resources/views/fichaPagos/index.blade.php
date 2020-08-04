@@ -79,34 +79,38 @@
 
                             @foreach($adeudos as $adeudo)
 
-                            @if($adeudo->cajaConcepto->bnd_mensualidad==1)
+                            @if($adeudo->cajaConcepto->bnd_mensualidad==1 and isset($adeudo->pagoOnLine))
                             <tr>
                                 <td>{{ ++$i }}</td><td>{{ $inscripcion->lectivo->name }}</td>
                                 <td class="">{{ $adeudo->cajaConcepto->name }}</td>
                                 <td>
                                     @if($adeudo->pagado_bnd==1)
-                                    {{ number_format($adeudo->caja->total,2) }}
+                                    {{ number_format(optional($adeudo->caja)->total,2) }}
                                     @else
-                                    {{ $adeudo->pagoOnLine->total }}
+                                    {{ optional($adeudo->pagoOnLine)->total }}
                                     @endif
                                 </td>
-                                <td>{{ date_format(date_create($adeudo->pagoOnLine->fecha_limite),'d-m-Y') }}</td>
+                                <td>
+                                    @if(isset(optional($adeudo->pagoOnLine)->fecha_limite))
+                                    {{ date_format(date_create(optional($adeudo->pagoOnLine)->fecha_limite),'d-m-Y') }}
+                                    @endif
+                                </td>
                                 <td>@if($adeudo->pagado_bnd==1)
                                     <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI</span>
-                                    @elseif($adeudo->pagado_bnd==0 and $adeudo->fecha_pago>date('Y-m-d'))
+                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago>date('Y-m-d'))
                                     <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO</span>
-                                    <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
-                                    <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ $adeudo->pagoOnLine->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
-                                    @elseif($adeudo->pagado_bnd==0 and $adeudo->fecha_pago<date('Y-m-d'))
+                                    <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                    <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
+                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago<date('Y-m-d'))
                                     <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO</span>
-                                    <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
-                                    <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ $adeudo->pagoOnLine->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
+                                    <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                    <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @endif
                                     <div id='loading1' style='display: none'><img src="{{ asset('img/ajax-loader.gif') }}" title="Enviando" /></div>
                                 </td>
                                 <td>
 
-                                    @if($adeudo->pagado_bnd==1)
+                                    @if($adeudo->pagado_bnd==1 )
                                     {{ $adeudo->caja->consecutivo }}
                                     <a href="{{ route('fichaAdeudos.imprimir', array('pago'=>$adeudo->caja->pago->id)) }}" target="_blank" class="btn btn-info btn-xs">
                                         Imprimir
