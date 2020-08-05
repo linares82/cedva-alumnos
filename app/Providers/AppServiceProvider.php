@@ -15,7 +15,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        Pago::observe(PagoObserver::class);
     }
 
     /**
@@ -26,5 +25,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         //
+        Pago::observe(PagoObserver::class);
     }
 }

@@ -50,6 +50,7 @@ class PagoObserver
     {
         $this->pago = $pago;
         $ingreso_egreso = IngresoEgreso::where('pago_id', $this->pago->id)->first();
+        //dd($ingreso_egreso);
         if ($this->pago->cuenta_efectivo_id > 0) {
             $cuentas_efectivo = CuentasEfectivo::where('id', $this->pago->cuenta_efectivo_id)->first();
             if (
