@@ -43,11 +43,15 @@
 
     </div>
 
-    @foreach($cliente->inscripciones as $inscripcion)
+
     <div class="col-md-12">
+        @php
+            $j=0;
+        @endphp
+        @foreach($combinaciones as $combinacion)
         <div class="widget-box widget-color-orange ui-sortable-handle" id="widget-box-1">
             <div class="widget-header">
-                <h5 class="widget-title">Detalle de Pagos de {{ $inscripcion->grado->name }}</h5>
+                <h5 class="widget-title">Detalle de Pagos de {{ $combinacion->grado->name }}</h5>
                 <div class="widget-toolbar">
                     <div class="widget-menu">
                         <a href="#" data-action="settings" data-toggle="dropdown">
@@ -68,20 +72,27 @@
                     <div class="table-responsive">
                     <table class="table table-striped table-bordered table-hover">
                         <thead>
-                            <th>No.</th><th>Lectivo</th><th>Concepto</th><th>Monto</th><th>Fecha Limite Pago</th><th>Pagado</th><th>Ticket</th>
+                            <th>No.</th><th>Concepto</th><th>Monto</th><th>Fecha Limite Pago</th><th>Pagado</th><th>Ticket</th>
                         </thead>
                         <tbody>
                             @php
-                            $adeudos=\App\Adeudo::where('combinacion_cliente_id',$inscripcion->combinacion_cliente_id)->with('cajaConcepto')->with('pagoOnLine')->get();
+                            $adeudos=\App\Adeudo::where('combinacion_cliente_id',$combinacion->id)
+                            ->with('cajaConcepto')
+                            ->with('pagoOnLine')
+                            ->get();
+
+                            //dd($adeudos);
                             $i=0;
-                            $inscripcion->load('lectivo');
                             @endphp
 
                             @foreach($adeudos as $adeudo)
 
                             @if($adeudo->cajaConcepto->bnd_mensualidad==1 and isset($adeudo->pagoOnLine))
+                            @php
+                                $j++;
+                            @endphp
                             <tr>
-                                <td>{{ ++$i }}</td><td>{{ $inscripcion->lectivo->name }}</td>
+                                <td>{{ ++$i }}</td>
                                 <td class="">{{ $adeudo->cajaConcepto->name }}</td>
                                 <td>
                                     @if($adeudo->pagado_bnd==1)
@@ -119,8 +130,6 @@
                                     @endif
                                 </td>
                             </tr>
-                            @else
-                            Sin información encontrada, favor de acudir a su plantel de inscripcion.
                             @endif
                             @endforeach
 
@@ -131,6 +140,9 @@
             </div>
         </div>
         @endforeach
+        @if($j==0)
+            Sin informacion encontrada, por favor acudir a su plantel de inscripcion.
+        @endif
     </div>
 </div>
 @endsection

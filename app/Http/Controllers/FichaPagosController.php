@@ -34,10 +34,15 @@ class FichaPagosController extends Controller
             ->whereNull('cc.deleted_at')
             ->whereNull('adeudos.deleted_at')
             ->get();*/
+        $combinaciones = CombinacionCliente::where('cliente_id', $cliente->id)
+            ->where('cuenta_ticket_pago', '>', 0)
+            ->whereNull('deleted_at')
+            ->get();
+        //dd($combinaciones);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)->get();
 
-        return view('fichaPagos.index', compact('adeudos', 'cliente', 'adeudo_pago_online'));
+        return view('fichaPagos.index', compact('adeudos', 'cliente', 'adeudo_pago_online', 'combinaciones'));
     }
 
     public function actualizarAdeudosPagos($cliente, $plantel)
