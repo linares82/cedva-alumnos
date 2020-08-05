@@ -21,6 +21,6 @@ Route::post(
     '/multipagos/successMultipagos',
     array(
         'as' => 'fichaAdeudos.successMultipagos',
-        'uses' => 'FichaAdeudosController@successMultipagos',
+        'uses' => 'FichaPagosController@successMultipagos',
     )
 )->middleware('corsMultipagos');

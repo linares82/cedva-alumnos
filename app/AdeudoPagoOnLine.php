@@ -56,6 +56,11 @@ class AdeudoPagoOnLine extends Model
         return $this->belongsTo('App\PeticionMultipago');
     }
 
+    public function pago()
+    {
+        return $this->belongsTo('App\Pago');
+    }
+
     public function plantel()
     {
         return $this->belongsTo('App\Plantel');

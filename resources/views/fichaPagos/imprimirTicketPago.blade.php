@@ -59,7 +59,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
 
             @if($combinacion)
             Estudios:{{$combinacion->especialidad->name." / ".
-                       $combinacion->nivel->name." / ".
+                       //$combinacion->nivel->name." / ".
                        $combinacion->grado->name}}
             @endif
         </td>
@@ -266,7 +266,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
 
             @if($combinacion)
             Estudios:{{$combinacion->especialidad->name." / ".
-                       $combinacion->nivel->name." / ".
+                       //$combinacion->nivel->name." / ".
                        $combinacion->grado->name}}
             @endif
         </td>

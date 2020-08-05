@@ -388,8 +388,8 @@ class FichaPagosController extends Controller
         $datos = $request->all();
         $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
         $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
-        $forma_pagos = $plantel->formaPagos()->whereNull('forma_pagos.cve_multipagos')->pluck('name', 'id');
-
+        $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->pluck('name', 'id');
+        //dd($forma_pagos);
         return view('fichaPagos.detalle', compact('adeudo_pago_online', 'forma_pagos'));
     }
 
@@ -400,7 +400,7 @@ class FichaPagosController extends Controller
         $adeudo_pago_online = AdeudoPagoOnLine::with('cliente')
             ->with('caja')
             ->with('pago')
-            ->with('peticionMultipagos')
+            ->with('peticionMultipago')
             ->find($datos['adeudo_pago_online_id']);
         $plantel = Plantel::find($adeudo_pago_online->plantel_id);
 
@@ -529,15 +529,16 @@ class FichaPagosController extends Controller
             $parametros = Param::where('llave', 'url_multipagos')->first();
             $datosMultipagos['url_peticion'] = $parametros->valor;
             $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
-            $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite;
+            $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
 
+            //dd($datosMultipagos);
             $peticion_multipagos = PeticionMultipago::create($datosMultipagos);
 
             //Se actualizan los datos en el registro de pagos en linea
             $adeudo_pago_online->peticion_multipago_id = $peticion_multipagos->id;
             $adeudo_pago_online->save();
         } else {
-            $adeudo_pago_online = $adeudo_pago_online->peticionMultipago;
+            $peticion_multipagos = $adeudo_pago_online->peticionMultipago;
             //PeticionMultipago::find($adeudo_pago_online->peticion_multipago_id);
 
             $datosMultipagos['mp_account'] = 6683;
@@ -564,9 +565,11 @@ class FichaPagosController extends Controller
             $parametros = Param::where('llave', 'url_multipagos')->first();
             $datosMultipagos['url_peticion'] = $parametros->valor;
             $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
-            $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite;
-
-            $adeudo_pago_online->update($datosMultipagos);
+            //dd($adeudo_pago_online);
+            $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
+            //
+            $peticion_multipagos->update($datosMultipagos);
+            //dd($peticion_multipagos);
         }
 
         return response()->json([
@@ -625,7 +628,7 @@ class FichaPagosController extends Controller
         $crearRegistro['mp_responsemsg'] = $datos['mp_responsemsg'];
         $crearRegistro['mp_authorization'] = $datos['mp_authorization'];
         $crearRegistro['mp_signature'] = $datos['mp_signature'];
-        $crearRegistro['mp_paymentmethod'] = $datos['mp_paymentmethod'];
+        //$crearRegistro['mp_paymentmethod'] = $datos['mp_paymentmethod'];
         $crearRegistro['usu_alta_id'] = 1;
         $crearRegistro['usu_mod_id'] = 1;
 
@@ -648,6 +651,12 @@ class FichaPagosController extends Controller
                 ->where('mp_amount', $crearRegistro['mp_amount'])
                 ->first();
             $pago = Pago::find($peticion->pago_id);
+            $caja = Caja::find($pago->caja_id);
+            $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
+            $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
+
+            $adeudo->pagado_bnd = 1;
+            $adeudo->save();
 
             //dd($peticion->toArray());
             if ($datos['mp_response'] == '00') {

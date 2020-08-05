@@ -97,6 +97,7 @@
                         <input type="text" id="otra_persona" placeholder="Nombre de Otra Persona" class="col-xs-12 col-sm-12">
                         <br><br>
                         <div class="clearfix form-actions align-center">
+                            <div id="content"></div>
                             <button class="btn btn-info" id="bootbox-confirm">
                                 <i class="ace-icon fa fa-check bigger-110"></i>
                                 Confirmar
@@ -161,6 +162,7 @@ $(document).ready(function(){
             },
             callback: function(result) {
                 if(result){
+                    $('#content').html('<div class="loading"><img src="{{ asset('img/ajax-loader.gif') }}" alt="loading" /><br/>Un momento, por favor...</div>');
                     $.ajax({
                         url: '{{ route("fichaAdeudos.crearCajaPagoPeticion") }}',
                         type: 'POST',
@@ -188,7 +190,7 @@ $(document).ready(function(){
                             $("#mp_urlsuccess").val(data.datos.mp_urlsuccess);
                             $("#mp_urlfailure").val(data.datos.mp_urlfailure);
                             $("#mp_paymentmethod").val(data.datos.mp_paymentmethod);
-                            $("#mp_datereference").val(data.datos.mp_datereference);
+                            $("#mp_datereference").val(formatoFecha(data.datos.mp_datereference));
 
                             $('#frm_multipagos').attr("action", data.datos.url_peticion);
                             $('#frm_multipagos').submit();
@@ -200,6 +202,10 @@ $(document).ready(function(){
         );
     });
 });
+
+function formatoFecha(texto){
+  return texto.replace(/^(\d{4})-(\d{2})-(\d{2})$/g,'$1/$2/$3');
+}
 
 </script>
 @endpush

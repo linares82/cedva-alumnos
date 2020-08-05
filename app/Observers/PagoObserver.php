@@ -46,7 +46,7 @@ class PagoObserver
         }
     }
 
-    public function updating(Pago $pago)
+    public function updated(Pago $pago)
     {
         $this->pago = $pago;
         $ingreso_egreso = IngresoEgreso::where('pago_id', $this->pago->id)->first();

@@ -17,7 +17,7 @@ class PeticionMultipago extends Model
     }
 
     //Mass Assignment
-    protected $fillable = ['pago_id', 'mp_account', 'mp_product', 'mp_order', 'mp_reference', 'mp_node', 'mp_concept', 'mp_amount', 'mp_customername', 'mp_currency', 'mp_signature', 'mp_urlsuccess', 'mp_urlfailure', 'contador_peticiones', 'usu_alta_id', 'usu_mod_id', 'mp_paymentmethod'];
+    protected $fillable = ['pago_id', 'mp_account', 'mp_product', 'mp_order', 'mp_reference', 'mp_node', 'mp_concept', 'mp_amount', 'mp_customername', 'mp_currency', 'mp_signature', 'mp_urlsuccess', 'mp_urlfailure', 'contador_peticiones', 'usu_alta_id', 'usu_mod_id', 'mp_paymentmethod', 'mp_datereference'];
 
     public function usu_alta()
     {
