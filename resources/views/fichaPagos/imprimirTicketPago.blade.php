@@ -31,14 +31,14 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
                 '; Nombre:'.$cliente->nombre.' '.$cliente->nombre2.' '.$cliente->ape_paterno.' '.$cliente->ape_materno.
                 '; Plantel:'.$cliente->plantel->razon;
         $cadena_pie='cliente:'.$cliente->id.'; Plantel:'.$cliente->plantel->id.";Caja:".$caja->consecutivo;
-        foreach($caja->cajaLns as $caja_linea){
-            if($caja_linea->cajaConcepto->id==1){
-                $cadena=$cadena.';'.$caja_linea->cajaConcepto->name." (".$caja_linea->adeudo->fecha_pago.")";
+
+            if($caja->cajaLn->cajaConcepto->id==1){
+                $cadena=$cadena.';'.$caja->cajaLn->cajaConcepto->name." (".$caja->cajaLn->adeudo->fecha_pago.")";
             }else{
-                $cadena=$cadena.';'.$caja_linea->cajaConcepto->name;
+                $cadena=$cadena.';'.$caja->cajaLn->cajaConcepto->name;
             }
 
-        }
+
         $cadena=$cadena.'; Total:'.number_format($caja->total, 2).'; '.$impresion_token->toke_unico;
         @endphp
 
@@ -79,7 +79,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
 
     <tr>
         <td colspan="2">
-            Atendido por: {{ $empleado->nombre." ".$empleado->ape_paterno." ".$empleado->ape_materno }}
+            Atendido por: En linea
         </td>
     </tr>
     <tr>
@@ -98,36 +98,36 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
         <td align="right"> Monto </td>
     </tr>
     <?php $total=0; ?>
-    @foreach($caja->cajaLns as $caja_linea)
+
 
     <tr>
         <td>
             @php
-            $conceptoMensualidad=explode(' ',$caja_linea->cajaConcepto->name);
+            $conceptoMensualidad=explode(' ',$caja->cajaLn->cajaConcepto->name);
 
             @endphp
-            @if($caja_linea->cajaConcepto->id==1)
-                {{$caja_linea->cajaConcepto->name." (".$caja_linea->adeudo->fecha_pago.")"}}
+            @if($caja->cajaLn->cajaConcepto->id==1)
+                {{$caja->cajaLn->cajaConcepto->name." (".$caja->cajaLn->adeudo->fecha_pago.")"}}
             @else
                 @if($conceptoMensualidad[0]="Mensualidad")
                     {{ $conceptoMensualidad[1] }}
                 @else
-                {{$caja_linea->cajaConcepto->name}}
+                {{$caja->cajaLn->cajaConcepto->name}}
                 @endif
             @endif
         </td>
         <td>
-            @if (isset($caja_linea->adeudo->fecha_pago))
-            {{$caja_linea->adeudo->fecha_pago}}
+            @if (isset($caja->cajaLn->adeudo->fecha_pago))
+            {{$caja->cajaLn->adeudo->fecha_pago}}
             @else
-            {{$caja_linea->caja->fecha}}
+            {{$caja->cajaLn->caja->fecha}}
             @endif        </td>
 
         </td>
-        <td align="right"> {{ number_format($caja_linea->subtotal, 2) }} </td>
+        <td align="right"> {{ number_format($caja->cajaLn->subtotal, 2) }} </td>
     </tr>
 
-    @endforeach
+
     <tr>
         <td>
             Subtotal
@@ -232,14 +232,14 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
         $cadena='Id:'.$cliente->id.
                        '; Nombre:'.$cliente->nombre.' '.$cliente->nombre2.' '.$cliente->ape_paterno.' '.$cliente->ape_materno.
                        '; Plantel:'.$cliente->plantel->razon;
-        foreach($caja->cajaLns as $caja_linea){
-            if($caja_linea->cajaConcepto->id==1){
-                $cadena=$cadena.';'.$caja_linea->cajaConcepto->name." (".$caja_linea->adeudo->fecha_pago.")";
+
+            if($caja->cajaLn->cajaConcepto->id==1){
+                $cadena=$cadena.';'.$caja->cajaLn->cajaConcepto->name." (".$caja->cajaLn->adeudo->fecha_pago.")";
             }else{
-                $cadena=$cadena.';'.$caja_linea->cajaConcepto->name;
+                $cadena=$cadena.';'.$caja->cajaLn->cajaConcepto->name;
             }
 
-        }
+
         $cadena=$cadena.'; Total:'.number_format($caja->total, 2).'; '.$impresion_token->toke_unico;
         @endphp
 
@@ -286,7 +286,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->get();
 
     <tr>
         <td colspan="2">
-            Atendido por: {{ $empleado->nombre." ".$empleado->ape_paterno." ".$empleado->ape_materno }}
+            Atendido por: En linea
         </td>
     </tr>
     <tr>
