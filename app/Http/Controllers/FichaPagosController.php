@@ -655,8 +655,7 @@ class FichaPagosController extends Controller
             $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
             $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
 
-            $adeudo->pagado_bnd = 1;
-            $adeudo->save();
+
 
             //dd($peticion->toArray());
             if ($datos['mp_response'] == '00') {
@@ -666,6 +665,8 @@ class FichaPagosController extends Controller
                 $caja = $pago->caja;
                 $caja->st_caja_id = 1;
                 $caja->save();
+                $adeudo->pagado_bnd = 1;
+                $adeudo->save();
             }
 
             return redirect()->route('fichaAdeudos.index');
