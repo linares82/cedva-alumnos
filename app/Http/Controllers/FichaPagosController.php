@@ -399,7 +399,8 @@ class FichaPagosController extends Controller
         if (!isset($caja_ln['fecha_limite']) or $caja_ln['fecha_limite'] == "") {
             //dd($caja_ln);
             if ($adeudo->fecha_pago > date('Y-m-d')) {
-                $caja_ln['fecha_limite'] = $adeudo->fecha_pago;
+
+                $caja_ln['fecha_limite'] = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDay(9)->toDateString();
             } else {
                 $caja_ln['fecha_limite'] = date('Y-m-d');
             }

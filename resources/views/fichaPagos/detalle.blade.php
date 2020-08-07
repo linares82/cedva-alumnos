@@ -34,13 +34,13 @@
     <div class="col-md-6">
         <div class="profile-user-info profile-user-info-striped">
             <div class="profile-info-row">
-                <div class="profile-info-name"> F. Actual Cobro </div>
+                <div class="profile-info-name"> F. Actual Cobro (dd-mm-yyyy) </div>
                 <div class="profile-info-value">
                      {{ $adeudo_pago_online->created_at->format('d-m-Y') }}
                 </div>
             </div>
             <div class="profile-info-row">
-                <div class="profile-info-name"> F. Vencimiento </div>
+                <div class="profile-info-name"> F. Vencimiento (dd-mm-yyyy) </div>
                 <div class="profile-info-value">
                      {{ $adeudo_pago_online->fecha_limite->format('d-m-Y') }}
                 </div>

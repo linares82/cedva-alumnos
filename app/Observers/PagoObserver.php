@@ -42,6 +42,13 @@ class PagoObserver
                 $ingreso['usu_mod_id'] = $this->pago->usu_mod_id;
                 $ingreso['transference_id'] = 0;
                 IngresoEgreso::create($ingreso);
+
+                $cliente = $pago->caja->cliente;
+                $seguimiento = $cliente->seguimiento;
+                $cliente->st_cliente_id = 4;
+                $cliente->save();
+                $seguimiento->st_seguimiento_id = 2;
+                $seguimiento->save();
             }
         }
     }
@@ -76,6 +83,13 @@ class PagoObserver
                 $ingreso['usu_mod_id'] = $this->pago->usu_mod_id;
                 $ingreso['transference_id'] = 0;
                 IngresoEgreso::create($ingreso);
+
+                $cliente = $pago->caja->cliente;
+                $seguimiento = $cliente->seguimiento;
+                $cliente->st_cliente_id = 4;
+                $cliente->save();
+                $seguimiento->st_seguimiento_id = 2;
+                $seguimiento->save();
             }
         }
     }

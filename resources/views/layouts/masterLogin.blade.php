@@ -134,7 +134,6 @@
 
                         @guest
                         <li class="red"><a href="{{ route('login') }}">Entrar</a></li>
-                        @else
 
                         @endguest
                     </ul>
