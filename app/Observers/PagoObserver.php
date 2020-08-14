@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Pago;
 use App\CuentasEfectivo;
 use App\IngresoEgreso;
+use App\Seguimiento;
 
 class PagoObserver
 {

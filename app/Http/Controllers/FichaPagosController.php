@@ -50,6 +50,7 @@ class FichaPagosController extends Controller
 
         $plantel = Plantel::find($plantel);
         $conceptosValidos = $plantel->conceptoMultipagos->pluck('id');
+        //dd($conceptosValidos);
         $mes = Date('m');
 
         switch ($mes) {
@@ -627,8 +628,8 @@ class FichaPagosController extends Controller
                 ->select('ce.id', 'ce.name')
                 ->join('cuentas_efectivo_plantels as cep', 'cep.cuentas_efectivo_id', '=', 'ce.id')
                 ->where('cep.plantel_id', '=', $plantel)
-                ->where('ce.bnd_banco', 0)
-                ->where('ce.id', '>', '0')
+                ->where('ce.bnd_banc', 0)
+                ->where('ce.i', '>', '0')
                 ->first();
             //dd($r);
             return $r->id;
@@ -637,7 +638,7 @@ class FichaPagosController extends Controller
                 ->select('ce.id', 'ce.name')
                 ->join('cuentas_efectivo_plantels as cep', 'cep.cuentas_efectivo_id', '=', 'ce.id')
                 ->where('cep.plantel_id', '=', $plantel)
-                ->where('ce.bnd_banco', 1)
+                ->where('ce.bnd_banc', 1)
                 ->where('ce.id', '>', '0')
                 ->first();
             //dd($r);
