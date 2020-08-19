@@ -106,18 +106,35 @@
                                     {{ date_format(date_create(optional($adeudo->pagoOnLine)->fecha_limite),'d-m-Y') }}
                                     @endif
                                 </td>
-                                <td>@if($adeudo->pagado_bnd==1)
-                                    <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI</span>
+                                <td>
+                                    @php
+                                    $peticion=$adeudo->pagoOnLine->peticionMultipago;
+                                    $respuesta_msj="";
+                                    if(!is_null($peticion)){
+                                        $respuesta=\App\SuccessMultipago::where('mp_order',$peticion->mp_order)
+                                        ->where('mp_reference',$peticion->mp_reference)
+                                        ->where('mp_amount',$peticion->mp_amount)
+                                        ->first();
+                                        if(!is_null($respuesta)){
+                                            $respuesta_msj=$respuesta->mp_responsemsg;
+                                        }
+                                    }
+                                    @endphp
+
+                                    @if($adeudo->pagado_bnd==1)
+                                    <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI-{{ $respuesta_msj }}</span>
                                     @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago>date('Y-m-d'))
-                                    <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO</span>
+                                    <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }}</span>
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago<date('Y-m-d'))
-                                    <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO</span>
+                                    <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO-{{ $respuesta_msj }}</span>
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @endif
                                     <div id='loading1' style='display: none'><img src="{{ asset('img/ajax-loader.gif') }}" title="Enviando" /></div>
+
+
                                 </td>
                                 <td>
 

@@ -22,6 +22,8 @@ use App\SuccessMultipago;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use DB;
+use Exception;
+use Illuminate\Support\Facades\Log;
 use Luecano\NumeroALetras\NumeroALetras;
 
 class FichaPagosController extends Controller
@@ -628,7 +630,7 @@ class FichaPagosController extends Controller
                 ->select('ce.id', 'ce.name')
                 ->join('cuentas_efectivo_plantels as cep', 'cep.cuentas_efectivo_id', '=', 'ce.id')
                 ->where('cep.plantel_id', '=', $plantel)
-                ->where('ce.bnd_banc', 0)
+                ->where('ce.bnd_banco', 0)
                 ->where('ce.i', '>', '0')
                 ->first();
             //dd($r);
@@ -638,7 +640,7 @@ class FichaPagosController extends Controller
                 ->select('ce.id', 'ce.name')
                 ->join('cuentas_efectivo_plantels as cep', 'cep.cuentas_efectivo_id', '=', 'ce.id')
                 ->where('cep.plantel_id', '=', $plantel)
-                ->where('ce.bnd_banc', 1)
+                ->where('ce.bnd_banco', 1)
                 ->where('ce.id', '>', '0')
                 ->first();
             //dd($r);
@@ -683,7 +685,11 @@ class FichaPagosController extends Controller
                 ->where('mp_signature', $crearRegistro['mp_signature'])
                 ->first();
             if (is_null($buscarRegistro)) {
-                SuccessMultipago::create($crearRegistro);
+                try {
+                    $success = SuccessMultipago::create($crearRegistro);
+                } catch (Exception $e) {
+                    Log::info($e->getMessage);
+                }
             }
 
             $peticion = PeticionMultipago::where('mp_order', $crearRegistro['mp_order'])
