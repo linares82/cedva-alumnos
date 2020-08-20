@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use App\Observers\PagoObserver;
 use App\Pago;
+use App\User;
+use Auth;
 
 class AppServiceProvider extends ServiceProvider
 {

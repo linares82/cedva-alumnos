@@ -6,7 +6,7 @@
     <div class="row">
         <div class="col-md-8 col-md-offset-2">
             <div class="panel panel-default">
-                <div class="panel-heading">Actualizar</div>
+                <div class="panel-heading">Personalizar su contraseña por favor</div>
                 <div class="panel-body">
                     {!! Form::model($user, array('route' => array('users.updatePerfil'),'method' => 'post')) !!}
                         {{ csrf_field() }}

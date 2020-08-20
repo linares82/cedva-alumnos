@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Param;
 use Illuminate\Http\Request;
+use Auth;
 
 class HomeController extends Controller
 {
@@ -23,7 +25,13 @@ class HomeController extends Controller
      */
     public function index()
     {
-        return view('home');
+        $param = Param::where('llave', 'pasDefault')->first();
+        //dd(Auth::user()->password . " - " . $param->valor);
+        if (Auth::user()->password == $param->valor) {
+            return redirect(route('users.editPerfil', Auth::user()->id));
+        } else {
+            return view('home');
+        }
     }
 
     public function welcome()

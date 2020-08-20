@@ -687,36 +687,37 @@ class FichaPagosController extends Controller
             if (is_null($buscarRegistro)) {
                 try {
                     $success = SuccessMultipago::create($crearRegistro);
+                    if (!is_null($success)) {
+                        $peticion = PeticionMultipago::where('mp_order', $crearRegistro['mp_order'])
+                            ->where('mp_reference', $crearRegistro['mp_reference'])
+                            ->where('mp_amount', $crearRegistro['mp_amount'])
+                            ->first();
+                        $pago = Pago::find($peticion->pago_id);
+                        $caja = Caja::find($pago->caja_id);
+                        $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
+                        $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
+
+
+
+                        //dd($peticion->toArray());
+                        if ($datos['mp_response'] == '00') {
+                            //$pago = Pago::find($peticion->pago_id);
+                            $pago->bnd_pagado = 1;
+                            $pago->save();
+                            $caja = $pago->caja;
+                            $caja->st_caja_id = 1;
+                            $caja->save();
+                            $adeudo->pagado_bnd = 1;
+                            $adeudo->save();
+                        }
+                    }
                 } catch (Exception $e) {
                     Log::info($e->getMessage);
                 }
             }
-
-            $peticion = PeticionMultipago::where('mp_order', $crearRegistro['mp_order'])
-                ->where('mp_reference', $crearRegistro['mp_reference'])
-                ->where('mp_amount', $crearRegistro['mp_amount'])
-                ->first();
-            $pago = Pago::find($peticion->pago_id);
-            $caja = Caja::find($pago->caja_id);
-            $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
-            $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
-
-
-
-            //dd($peticion->toArray());
-            if ($datos['mp_response'] == '00') {
-                //$pago = Pago::find($peticion->pago_id);
-                $pago->bnd_pagado = 1;
-                $pago->save();
-                $caja = $pago->caja;
-                $caja->st_caja_id = 1;
-                $caja->save();
-                $adeudo->pagado_bnd = 1;
-                $adeudo->save();
-            }
-
             return redirect()->route('fichaAdeudos.index');
         } else {
+            Log::info($datos['mp_order'] . "-" . $datos['mp_reference'] . "-" . $datos['mp_amount'] . "- Firma Incorrecta");
             dd('Firma incorrecta');
         }
     }
