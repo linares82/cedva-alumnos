@@ -98,7 +98,14 @@
                         <br><br>
                         <div class="clearfix form-actions align-center">
                             <div id="content"></div>
-                            @if($adeudo_pago_online->fecha_limite->format('d-m-Y')>date('Y-m-d'))
+                            @php
+                                $hoy=\Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+                                //dd($adeudo_pago_online->fecha_limite);
+                                //$fecha_limite=\Carbon\Carbon::createFromFormat('Y-m-d', $adeudo_pago_online->fecha_limite);
+                                //dd($fecha_limite);
+                            @endphp
+
+                            @if($adeudo_pago_online->fecha_limite->greaterThan($hoy))
                             <button class="btn btn-info" id="bootbox-confirm">
                                 <i class="ace-icon fa fa-check bigger-110"></i>
                                 Confirmar
