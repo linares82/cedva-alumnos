@@ -15,7 +15,7 @@ class Pago extends Model
     }
 
     //Mass Assignment
-    protected $fillable = ['caja_id', 'monto', 'fecha', 'forma_pago_id', 'referencia', 'usu_alta_id', 'usu_mod_id', 'consecutivo', 'cuenta_efectivo_id', 'bnd_pagado', 'bnd_referenciado'];
+    protected $fillable = ['caja_id', 'monto', 'fecha', 'forma_pago_id', 'referencia', 'usu_alta_id', 'usu_mod_id', 'consecutivo', 'cuenta_efectivo_id', 'bnd_pagado', 'bnd_referenciado','csc_simplificado'];
 
     public function usu_alta()
     {

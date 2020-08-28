@@ -19,6 +19,7 @@ use App\PeticionMultipago;
 use App\Plantel;
 use App\PromoPlanLn;
 use App\SuccessMultipago;
+use App\SerieFolioSimplificado;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use DB;
@@ -699,8 +700,6 @@ class FichaPagosController extends Controller
                         $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
                         $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
 
-
-
                         //dd($peticion->toArray());
                         if ($datos['mp_response'] == '00') {
                             //$pago = Pago::find($peticion->pago_id);
@@ -711,9 +710,60 @@ class FichaPagosController extends Controller
                             $caja->save();
                             $adeudo->pagado_bnd = 1;
                             $adeudo->save();
+
+                            //Generar consecutivo pago simplificado
+                            $plantel = Plantel::find($caja->plantel_id);
+                            $pago_final = Pago::where('caja_id', '=', $caja->id)->orderBy('id', 'desc')->first();
+                            $pagos = Pago::where('caja_id', '=', $caja->id)->orderBy('id', 'desc')->get();
+
+                            $mes = Carbon::createFromFormat('Y-m-d', $pago_final->fecha)->month;
+                            $anio = Carbon::createFromFormat('Y-m-d', $pago_final->fecha)->year;
+
+                            if ($caja->cajaLn->cajaConcepto->bnd_mensualidad == 1 and is_null($pago_final->csc_simplificado)) {
+                                $serie_folio_simplificado = SerieFolioSimplificado::where('cuenta_p_id', $plantel->cuenta_p_id)
+                                    ->where('anio', $anio)
+                                    ->where('mese_id', 13)
+                                    ->where('bnd_activo', 1)
+                                    ->where('bnd_fiscal', 1)
+                                    ->first();
+                                $serie_folio_simplificado->folio_actual = $serie_folio_simplificado->folio_actual + 1;
+                                $folio_actual = $serie_folio_simplificado->folio_actual;
+                                $serie = $serie_folio_simplificado->serie;
+                                $serie_folio_simplificado->save();
+
+                                $relleno = "0000";
+                                $consecutivo = substr($relleno, 0, 4 - strlen($folio_actual)) . $folio_actual;
+                                foreach ($pagos as $pago) {
+                                    $pago->csc_simplificado = $serie . "-" . $consecutivo;
+                                    $pago->save();
+                                }
+                            } elseif ($caja->cajaLn->cajaConcepto->bnd_mensualidad == 0 and is_null($pago_final->csc_simplificado)) {
+                                $serie_folio_simplificado = SerieFolioSimplificado::where('cuenta_p_id', $plantel->cuenta_p_id)
+                                    ->where('anio', $anio)
+                                    ->where('mese_id', $mes)
+                                    ->where('bnd_activo', 1)
+                                    ->where('bnd_fiscal', 0)
+                                    ->first();
+                                $serie_folio_simplificado->folio_actual = $serie_folio_simplificado->folio_actual + 1;
+                                $serie_folio_simplificado->save();
+                                $folio_actual = $serie_folio_simplificado->folio_actual;
+                                $mes_prefijo = $serie_folio_simplificado->mes1->abreviatura;
+                                $anio_prefijo = $anio - 2000;
+                                $serie = $serie_folio_simplificado->serie;
+
+
+                                $relleno = "0000";
+                                $consecutivo = substr($relleno, 0, 4 - strlen($folio_actual)) . $folio_actual;
+                                foreach ($pagos as $pago) {
+                                    $pago->csc_simplificado = $serie . "-" . $mes_prefijo . $anio_prefijo . "-" . $consecutivo;
+                                    $pago->save();
+                                }
+                            }
+                            //Fin crear consecutivo simplificado
                         }
                     }
                 } catch (Exception $e) {
+                    dd($e);
                     Log::info($e->getMessage);
                 }
             }
