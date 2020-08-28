@@ -98,10 +98,12 @@
                         <br><br>
                         <div class="clearfix form-actions align-center">
                             <div id="content"></div>
+                            @if($adeudo_pago_online->fecha_limite->format('d-m-Y')>date('Y-m-d'))
                             <button class="btn btn-info" id="bootbox-confirm">
                                 <i class="ace-icon fa fa-check bigger-110"></i>
                                 Confirmar
                             </button>
+                            @endif
                         </div>
                     </form>
 
