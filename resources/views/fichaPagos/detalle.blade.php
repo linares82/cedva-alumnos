@@ -105,12 +105,12 @@
                                 //dd($fecha_limite);
                             @endphp
 
-                            @if($adeudo_pago_online->fecha_limite->greaterThan($hoy))
+                            <!--@@if($adeudo_pago_online->fecha_limite->greaterThanOrEqualTo($hoy))-->
                             <button class="btn btn-info" id="bootbox-confirm">
                                 <i class="ace-icon fa fa-check bigger-110"></i>
                                 Confirmar
                             </button>
-                            @endif
+                            <!--@@endif-->
                         </div>
                     </form>
 

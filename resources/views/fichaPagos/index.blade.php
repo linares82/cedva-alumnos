@@ -130,7 +130,7 @@
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
 
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
-                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago<date('Y-m-d'))
+                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total))
                                     <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO-{{ $respuesta_msj }}</span>
 
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
@@ -149,7 +149,14 @@
                                         Imprimir
                                         <i class="ace-icon fa fa-print  align-top bigger-125 icon-on-right"></i>
                                     </a>
+                                    @if(Auth::user()->nivel==1 )
+                                    <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" target="_blank" class="btn btn-inverse btn-xs">
+                                        Facturar
+                                        <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
+                                    </a>
                                     @endif
+                                    @endif
+
                                 </td>
                             </tr>
                             @endif

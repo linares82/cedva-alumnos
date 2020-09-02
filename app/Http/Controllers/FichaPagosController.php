@@ -20,6 +20,7 @@ use App\Plantel;
 use App\PromoPlanLn;
 use App\SuccessMultipago;
 use App\SerieFolioSimplificado;
+use App\TipoPersona;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use DB;
@@ -52,6 +53,7 @@ class FichaPagosController extends Controller
     {
 
         $plantel = Plantel::find($plantel);
+        //dd($plantel);
         $conceptosValidos = $plantel->conceptoMultipagos->pluck('id');
         //dd($conceptosValidos);
         $mes = Date('m');
@@ -178,7 +180,7 @@ class FichaPagosController extends Controller
         //dd($conceptosValidos);
 
         //$adeudos = Adeudo::where('id', '=', $adeudo_tomado)->get();
-        //dd($adeudos);
+        dd($adeudo);
 
         $cliente = Cliente::with('autorizacionBecas')->find($adeudo->cliente_id);
         //dd($adeudos->toArray());
@@ -214,7 +216,7 @@ class FichaPagosController extends Controller
                     //dd($beca);
                 }
             }
-
+            //dd($caja_ln);
             $beca_autorizada = AutorizacionBeca::find($beca_a);
             //                        dd($beca_autorizada->monto_mensualidad > 0);
             if (
@@ -228,6 +230,7 @@ class FichaPagosController extends Controller
             } else {
                 $caja_ln['total'] = $caja_ln['subtotal'] - $caja_ln['descuento'];
             }
+
             //dd($caja_ln);
             //********************************* */
             //Fin Calculo descuento por beca
@@ -285,15 +288,17 @@ class FichaPagosController extends Controller
                     $fecha_caja = Carbon::createFromFormat('Y-m-d', Date('Y-m-d'));
                     $fecha_adeudo = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago);
                     //dd($fecha_caja->greaterThanOrEqualTo($fecha_adeudo));
-                    if ($fecha_caja >= $fecha_adeudo) {
-
+                    //if ($fecha_caja >= $fecha_adeudo) {
+                    if ($fecha_caja->greaterThanOrEqualTo($fecha_adeudo)) {
                         $dias = $fecha_caja->diffInDays($fecha_adeudo);
+                        //dd($dias);
                         if ($fecha_caja < $fecha_adeudo) {
                             $dias = $dias * -1;
                         }
                         //dd($dias);
 
                         //calcula recargo o descuento segun regla y aplica
+                        //dd($dias >= $regla->dia_inicio and $dias <= $regla->dia_fin);
                         if ($dias >= $regla->dia_inicio and $dias <= $regla->dia_fin) {
                             //dd($fecha_adeudo);
                             if ($regla->dia_fin > 60) {
@@ -346,6 +351,7 @@ class FichaPagosController extends Controller
                         //dd($dias);
 
                         //calcula recargo o descuento segun regla y aplica
+                        //dd($dias >= $regla->dia_inicio and $dias <= $regla->dia_fin);
                         if ($dias >= $regla->dia_inicio and $dias <= $regla->dia_fin) {
                             if ($regla->dia_fin > 60) {
                                 $caja_ln['fecha_limite'] = $fecha_adeudo->addDay(60)->toDateString();
@@ -404,9 +410,11 @@ class FichaPagosController extends Controller
             //dd($caja_ln);
             $fecha_aux = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
             $dia = $fecha_aux->day;
+            $mes = $fecha_aux->mont;
             if ($adeudo->fecha_pago >= date('Y-m-d') or $dia == 28 or $dia == 29 or $dia == 30 or $dia == 31) {
-
                 $caja_ln['fecha_limite'] = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDay(9)->toDateString();
+            } elseif ($dia >= 1 and $dia <= 10) {
+                $caja_ln['fecha_limite'] = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDay(9)->toDateString();;
             } else {
                 $caja_ln['fecha_limite'] = date('Y-m-d');
             }
@@ -584,6 +592,8 @@ class FichaPagosController extends Controller
             $adeudo_pago_online->save();
         } else {
             $peticion_multipagos = $adeudo_pago_online->peticionMultipago;
+            $peticion_multipagos->contador_peticiones++;
+            $peticion_multipagos->save();
             //PeticionMultipago::find($adeudo_pago_online->peticion_multipago_id);
 
             $datosMultipagos['mp_account'] = 6683;
@@ -612,7 +622,7 @@ class FichaPagosController extends Controller
             $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
             //dd($adeudo_pago_online);
             $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
-            //
+
             $peticion_multipagos->update($datosMultipagos);
             //dd($peticion_multipagos);
         }
@@ -853,5 +863,27 @@ class FichaPagosController extends Controller
             'centavos' => $centavos,
             //'fechaLetra' => $fechaLetra
         ));
+    }
+
+    public function datosFactura(Request $request)
+    {
+        $datos = $request->all();
+
+        $adeudoPagoOnLine = AdeudoPagoOnLine::find($datos['pagoOnLine']);
+        $cliente = $adeudoPagoOnLine->cliente;
+        $tipoPersonas = TipoPersona::pluck('name', 'id');
+        $adeudo_pago_on_line = $adeudoPagoOnLine->id;
+        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line'));
+    }
+
+    public function confirmarFactura(Request $request, $id)
+    {
+        $datos = $request->except('adeudo_pago_on_line');
+        //dd($datos);
+        $adeudoPagoOnLine = AdeudoPagoOnLine::find($id);
+        $cliente = $adeudoPagoOnLine->cliente;
+        $cliente->update($datos);
+        dd($cliente->toArray());
+        //dd($adeudoPagoOnLine);
     }
 }

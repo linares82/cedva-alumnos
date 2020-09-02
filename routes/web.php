@@ -94,3 +94,21 @@ Route::get(
         'uses' => 'FichaPagosController@imprimir'
     )
 )->middleware('auth');
+
+Route::get(
+    '/fichaAdeudos/datosFactura',
+    array(
+        'as' => 'fichaAdeudos.datosFactura',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@datosFactura'
+    )
+)->middleware('auth');
+
+Route::post(
+    '/fichaAdeudos/confirmarFactura/{id}',
+    array(
+        'as' => 'fichaAdeudos.confirmarFactura',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@confirmarFactura'
+    )
+)->middleware('auth');
