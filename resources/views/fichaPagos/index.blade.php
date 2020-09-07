@@ -96,7 +96,7 @@
                                 <td class="">{{ $adeudo->cajaConcepto->name }}</td>
                                 <td>
                                     @if($adeudo->pagado_bnd==1)
-                                    {{ number_format(optional($adeudo->caja)->total,2) }}
+                                    {{ number_format(optional($adeudo->caja->pago)->monto,2) }}
                                     @else
                                     {{ optional($adeudo->pagoOnLine)->total }}
                                     @endif
@@ -149,12 +149,22 @@
                                         Imprimir
                                         <i class="ace-icon fa fa-print  align-top bigger-125 icon-on-right"></i>
                                     </a>
-                                    @if(Auth::user()->nivel==1 )
-                                    <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" target="_blank" class="btn btn-inverse btn-xs">
-                                        Facturar
-                                        <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
-                                    </a>
-                                    @endif
+                                        @if(Auth::user()->nivel==1 )
+                                            @if(is_null($adeudo->caja->pago->uuid) and is_null($adeudo->caja->pago->cbb) and is_null($adeudo->caja->pago->xml))
+                                            <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" target="_blank" class="btn btn-inverse btn-xs">
+                                                Facturar
+                                                <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
+                                            </a>
+                                            @else
+                                            <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
+                                                <i class="ace-icon fa fa-download"></i> Pdf
+                                            </a>
+
+                                            <a href="{{ route('fichaAdeudos.getFacturaXmlByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" class="btn btn-info btn-white btn-xs">
+                                                <i class="ace-icon fa fa-download"></i> Xml
+                                            </a>
+                                            @endif
+                                        @endif
                                     @endif
 
                                 </td>

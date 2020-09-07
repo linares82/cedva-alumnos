@@ -27,6 +27,10 @@ use DB;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Luecano\NumeroALetras\NumeroALetras;
+use SoapClient;
+use Session;
+use SimpleXMLElement;
+use DOMDocument;
 
 class FichaPagosController extends Controller
 {
@@ -180,7 +184,7 @@ class FichaPagosController extends Controller
         //dd($conceptosValidos);
 
         //$adeudos = Adeudo::where('id', '=', $adeudo_tomado)->get();
-        dd($adeudo);
+        //dd($adeudo);
 
         $cliente = Cliente::with('autorizacionBecas')->find($adeudo->cliente_id);
         //dd($adeudos->toArray());
@@ -409,12 +413,14 @@ class FichaPagosController extends Controller
         if (!isset($caja_ln['fecha_limite']) or $caja_ln['fecha_limite'] == "") {
             //dd($caja_ln);
             $fecha_aux = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+            $fechaAdeudo = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago);
             $dia = $fecha_aux->day;
-            $mes = $fecha_aux->mont;
-            if ($adeudo->fecha_pago >= date('Y-m-d') or $dia == 28 or $dia == 29 or $dia == 30 or $dia == 31) {
+            $mes = $fecha_aux->month;
+            if (($dia >= 1 and $dia <= 10 and $mes == $fechaAdeudo->month) or
+                ($dia >= 28 and $dia <= 31 and $mes <> $fechaAdeudo->month and $fechaAdeudo->lessThanOrEqualTo($fecha_aux)) or
+                $fechaAdeudo->greaterThanOrEqualTo($fecha_aux)
+            ) {
                 $caja_ln['fecha_limite'] = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDay(9)->toDateString();
-            } elseif ($dia >= 1 and $dia <= 10) {
-                $caja_ln['fecha_limite'] = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDay(9)->toDateString();;
             } else {
                 $caja_ln['fecha_limite'] = date('Y-m-d');
             }
@@ -880,10 +886,282 @@ class FichaPagosController extends Controller
     {
         $datos = $request->except('adeudo_pago_on_line');
         //dd($datos);
+        $rules = [
+            'tipo_persona_id' => 'required',
+            'frazon' => 'required',
+            'frfc' => 'required',
+            'fcalle' => 'required',
+            'fno_exterior' => 'required',
+            'fcolonia' => 'required',
+            'festado' => 'required',
+            'fpais' => 'required',
+            'fcp' => 'required',
+        ];
+        $customMessages = [
+            'required' => 'El campo es obligatorio, capturar un valor.'
+        ];
+        $request->validate($rules, $customMessages);
+        //dd($v);
         $adeudoPagoOnLine = AdeudoPagoOnLine::find($id);
+        $adeudo = $adeudoPagoOnLine->adeudo;
         $cliente = $adeudoPagoOnLine->cliente;
         $cliente->update($datos);
-        dd($cliente->toArray());
+        $pago = $adeudoPagoOnLine->pago;
+        $caja = $adeudoPagoOnLine->caja;
+        //Parametros para el webservice
+        $url = Param::where('llave', 'webServiceFacturacion')->first();
+        $cuenta = Param::where('llave', 'cuentaFacturacion')->first();
+        $password = Param::where('llave', 'passwordFacturacion')->first();
+        $usuario = Param::where('llave', 'usuarioFacturacion')->first();
+
+        try {
+            $opts = array(
+                'http' => array(
+                    'user_agent' => 'PHPSoapClient'
+                )
+            );
+            $context = stream_context_create($opts);
+
+            $wsdlUrl = $url->valor;
+            $soapClientOptions = array(
+                'stream_context' => $context,
+                'cache_wsdl' => WSDL_CACHE_NONE
+            );
+
+            $client = new SoapClient($wsdlUrl, $soapClientOptions);
+
+            //dd($client->__getFunctions());
+
+            $objetosArray = array(
+                'credenciales' => array(
+                    'Cuenta' => $cuenta->valor,
+                    'Password' => $password->valor,
+                    'Usuario' => $usuario->valor
+                ),
+                'cfdi' => array(
+                    'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
+                    //Plantel emisor de factura
+                    'Emisor' => array(
+                        'Nombre' => $cliente->plantel->nombre_corto,
+                        'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
+                    ),
+                    //Cliente
+                    'Receptor' => array(
+                        'Nombre' => $cliente->frazon,
+                        'Rfc' => 'TEST010203001', //$cliente->frfc
+                        'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                    ),
+                    //'CondicionesDePago' => 'CONDICIONES', //opcional
+                    'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
+                    'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
+                    'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
+                    'Moneda' => 'MXN', //Default
+                    'Referencia' => $pago->csc_simplificado,  //Definir valor
+                    'Conceptos' => array('ConceptoR' => array(
+                        'Cantidad' => '1',
+                        'ClaveProdServ' => '01010101', //Definir valor defaul de acuerdo al SAT
+                        'ClaveUnidad' => 'E48',
+                        'Unidad' => 'Servicio', //Definir valor default
+                        'Descripcion' => $caja->cajaLn->cajaConcepto->name,
+                        /*'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
+                            'Base' => '17000',
+                            'Importe' => '2720.00',
+                            'Impuesto' => '002',
+                            'TasaOCuota' => '0.160000',
+                            'TipoFactor' => 'Tasa'
+                        ),),),*/
+                        //'NoIdentificacion' => '00003', //Opcional
+                        'Importe' => number_format($pago->monto, 2, '.', ''),
+                        'ValorUnitario' => number_format($pago->monto, 2, '.', '')
+                    ),),
+                    'SubTotal' => number_format($pago->monto, 2, '.', ''),
+                    'Total' => number_format($pago->monto, 2, '.', '')
+                )
+            );
+            //dd($objetosArray);
+            $result = $client->GenerarCFDI($objetosArray)->GenerarCFDIResult;
+            //dd($result);
+            if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+                Session::flash('error', $result->ErrorGeneral);
+                return back();
+            } elseif ($result->OperacionExitosa == true) {
+                /*
+                $p = xml_parser_create();
+                xml_parse_into_struct($p, $result->XML, $vals, $index);
+                xml_parser_free($p);
+                dd($vals);
+                */
+                //dd($result);
+                $xmlArray = $this->xmlstr_to_array($result->XML);
+                //dd($xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"]);
+                $pago->uuid = $xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"];
+                $pago->cbb = $result->CBB;
+                $pago->xml = $result->XML;
+                $pago->save();
+            }
+        } catch (\Exception $e) {
+            echo $e->getMessage();
+        }
+        return redirect()->route('fichaAdeudos.index');
+        //dd($cliente->toArray());
         //dd($adeudoPagoOnLine);
+    }
+
+    function xmlstr_to_array($xmlstr)
+    {
+        $doc = new DOMDocument();
+        $doc->loadXML($xmlstr);
+        $root = $doc->documentElement;
+        $output = $this->domnode_to_array($root);
+        $output['@root'] = $root->tagName;
+        return $output;
+    }
+    function domnode_to_array($node)
+    {
+        $output = array();
+        switch ($node->nodeType) {
+            case XML_CDATA_SECTION_NODE:
+            case XML_TEXT_NODE:
+                $output = trim($node->textContent);
+                break;
+            case XML_ELEMENT_NODE:
+                for ($i = 0, $m = $node->childNodes->length; $i < $m; $i++) {
+                    $child = $node->childNodes->item($i);
+                    $v = $this->domnode_to_array($child);
+                    if (isset($child->tagName)) {
+                        $t = $child->tagName;
+                        if (!isset($output[$t])) {
+                            $output[$t] = array();
+                        }
+                        $output[$t][] = $v;
+                    } elseif ($v || $v === '0') {
+                        $output = (string) $v;
+                    }
+                }
+                if ($node->attributes->length && !is_array($output)) { //Has attributes but isn't an array
+                    $output = array('@content' => $output); //Change output into an array.
+                }
+                if (is_array($output)) {
+                    if ($node->attributes->length) {
+                        $a = array();
+                        foreach ($node->attributes as $attrName => $attrNode) {
+                            $a[$attrName] = (string) $attrNode->value;
+                        }
+                        $output['@attributes'] = $a;
+                    }
+                    foreach ($output as $t => $v) {
+                        if (is_array($v) && count($v) == 1 && $t != '@attributes') {
+                            $output[$t] = $v[0];
+                        }
+                    }
+                }
+                break;
+        }
+        return $output;
+    }
+
+    public function getFacturaXmlByUuid(Request $request)
+    {
+        $datos = $request->all();
+        //Parametros para el webservice
+        $url = Param::where('llave', 'webServiceFacturacion')->first();
+        $cuenta = Param::where('llave', 'cuentaFacturacion')->first();
+        $password = Param::where('llave', 'passwordFacturacion')->first();
+        $usuario = Param::where('llave', 'usuarioFacturacion')->first();
+
+        try {
+            $opts = array(
+                'http' => array(
+                    'user_agent' => 'PHPSoapClient'
+                )
+            );
+            $context = stream_context_create($opts);
+
+            $wsdlUrl = $url->valor;
+            $soapClientOptions = array(
+                'stream_context' => $context,
+                'cache_wsdl' => WSDL_CACHE_NONE
+            );
+
+            $client = new SoapClient($wsdlUrl, $soapClientOptions);
+
+            //dd($client->__getFunctions());
+
+            $objetosArray = array(
+                'credenciales' => array(
+                    'Cuenta' => $cuenta->valor,
+                    'Password' => $password->valor,
+                    'Usuario' => $usuario->valor
+                ),
+                'uuid' => $datos['uuid'],
+            );
+            //dd($objetosArray);
+            $result = $client->ObtenerXMLPorUUID($objetosArray)->ObtenerXMLPorUUIDResult;
+            //dd($result->XML);
+            if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+                Session::flash('error', $result->ErrorGeneral);
+                return back();
+            } elseif ($result->OperacionExitosa == true) {
+                //$xml = simplexml_load_string($result->XML);
+                //dd($xml);
+                return response()->attachment($result->XML);
+            }
+        } catch (\Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+
+    public function getFacturaPdfByUuid(Request $request)
+    {
+        $datos = $request->all();
+        //Parametros para el webservice
+        $url = Param::where('llave', 'webServiceFacturacion')->first();
+        $cuenta = Param::where('llave', 'cuentaFacturacion')->first();
+        $password = Param::where('llave', 'passwordFacturacion')->first();
+        $usuario = Param::where('llave', 'usuarioFacturacion')->first();
+
+        try {
+            $opts = array(
+                'http' => array(
+                    'user_agent' => 'PHPSoapClient'
+                )
+            );
+            $context = stream_context_create($opts);
+
+            $wsdlUrl = $url->valor;
+            $soapClientOptions = array(
+                'stream_context' => $context,
+                'cache_wsdl' => WSDL_CACHE_NONE
+            );
+
+            $client = new SoapClient($wsdlUrl, $soapClientOptions);
+
+            //dd($client->__getFunctions());
+
+            $objetosArray = array(
+                'credenciales' => array(
+                    'Cuenta' => $cuenta->valor,
+                    'Password' => $password->valor,
+                    'Usuario' => $usuario->valor
+                ),
+                'uuid' => $datos['uuid'],
+                'nombrePlantilla' => ''
+            );
+            //dd($objetosArray);
+            $result = $client->ObtenerPdf($objetosArray)->ObtenerPDFResult;
+
+            if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+                Session::flash('error', $result->ErrorGeneral);
+                return back();
+            } elseif ($result->OperacionExitosa == true) {
+                $data = base64_decode($result->PDF);
+                header('Content-Type: application/pdf');
+                echo $data;
+            }
+        } catch (\Exception $e) {
+            echo $e->getMessage();
+        }
+        //dd($result);
     }
 }

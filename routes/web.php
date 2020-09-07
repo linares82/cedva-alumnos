@@ -112,3 +112,19 @@ Route::post(
         'uses' => 'FichaPagosController@confirmarFactura'
     )
 )->middleware('auth');
+Route::get(
+    '/fichaAdeudos/getFacturaXmlByUuid',
+    array(
+        'as' => 'fichaAdeudos.getFacturaXmlByUuid',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@getFacturaXmlByUuid'
+    )
+)->middleware('auth');
+Route::get(
+    '/fichaAdeudos/getFacturaPdfByUuid',
+    array(
+        'as' => 'fichaAdeudos.getFacturaPdfByUuid',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@getFacturaPdfByUuid'
+    )
+)->middleware('auth');
