@@ -149,13 +149,20 @@
                                         Imprimir
                                         <i class="ace-icon fa fa-print  align-top bigger-125 icon-on-right"></i>
                                     </a>
-                                        <!--@@if(Auth::user()->nivel==1 )-->
-                                            @if(is_null($adeudo->caja->pago->uuid) and is_null($adeudo->caja->pago->cbb) and is_null($adeudo->caja->pago->xml))
+
+                                        @if(Auth::user()->nivel==1 )
+                                        @php
+                                        $mesHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
+                                        $mesFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->month;
+
+                                        @endphp
+
+                                            @if(is_null($adeudo->caja->pago->uuid) and is_null($adeudo->caja->pago->cbb) and is_null($adeudo->caja->pago->xml) and $mesHoy==$mesFechaPago)
                                             <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" target="_blank" class="btn btn-inverse btn-xs">
                                                 Facturar
                                                 <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
                                             </a>
-                                            @else
+                                            @elseif(!is_null($adeudo->caja->pago->uuid) and !is_null($adeudo->caja->pago->cbb) and !is_null($adeudo->caja->pago->xml))
                                             <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
                                                 <i class="ace-icon fa fa-download"></i> Pdf
                                             </a>
@@ -163,7 +170,7 @@
                                             <a href="{{ route('fichaAdeudos.getFacturaXmlByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" class="btn btn-info btn-white btn-xs">
                                                 <i class="ace-icon fa fa-download"></i> Xml
                                             </a>
-                                            <!--@@endif-->
+                                            @endif
                                         @endif
                                     @endif
 
