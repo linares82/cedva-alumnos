@@ -151,6 +151,10 @@
                                     </a>
 
                                         @if(Auth::user()->nivel==1 )
+                                        <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
+                                            Facturar
+                                            <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
+                                        </a>
                                         @php
                                         $mesHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
                                         $mesFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->month;

@@ -60,7 +60,7 @@ class FichaPagosController extends Controller
         //dd($plantel);
         $conceptosValidos = $plantel->conceptoMultipagos->pluck('id');
         //dd($conceptosValidos);
-        $mes = Date('m');
+        /*$mes = Date('m');
 
         switch ($mes) {
             case 1:
@@ -94,20 +94,38 @@ class FichaPagosController extends Controller
                 $anioFuturo = Date('Y');
         }
         $anio = Date('Y');
-        $adeudos = Adeudo::select('adeudos.*')
+        */
+        $adeudos_pagados = Adeudo::select('adeudos.*')
             ->join('caja_conceptos as cajaCon', 'cajaCon.id', '=', 'adeudos.caja_concepto_id')
-            ->whereMonth('fecha_pago', '>=', $mesPasado)
-            ->whereMonth('fecha_pago', '<=', $mesFuturo)
-            ->whereYear('fecha_pago', '>=', $anioPasado)
-            ->whereYear('fecha_pago', '<=', $anioFuturo)
             ->whereIn('cajaCon.cve_multipagos', $conceptosValidos)
             ->where('adeudos.cliente_id', $cliente)
+            ->where('adeudos.pagado_bnd', 1)
+            ->whereNull('adeudos.deleted_at')
+            ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
+            ->orderBy('adeudos.id');
+        /*->whereNull('cc.deleted_at')
+            ->with('caja')
+            ->with('cliente')
+            ->with('pagoOnLine')
+            ->get();*/
+        $adeudos = Adeudo::select('adeudos.*')
+            ->join('caja_conceptos as cajaCon', 'cajaCon.id', '=', 'adeudos.caja_concepto_id')
+            /*->whereMonth('fecha_pago', '>=', $mesPasado)
+            ->whereMonth('fecha_pago', '<=', $mesFuturo)
+            ->whereYear('fecha_pago', '>=', $anioPasado)
+            ->whereYear('fecha_pago', '<=', $anioFuturo)*/
+            ->whereIn('cajaCon.cve_multipagos', $conceptosValidos)
+            ->where('adeudos.cliente_id', $cliente)
+            ->where('adeudos.pagado_bnd', 0)
+            ->orderBy('adeudos.id')
+            ->take(1)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->whereNull('cc.deleted_at')
             ->with('caja')
             ->with('cliente')
             ->with('pagoOnLine')
+            ->union($adeudos_pagados)
             ->get();
         //dd($adeudos->toArray());
         foreach ($adeudos as $adeudo) {
@@ -155,24 +173,24 @@ class FichaPagosController extends Controller
                     $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
                     //dd($hoy->toDateString());
                     //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
-                    if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
-                        //$input['matricula'] = $adeudo->cliente->matricula;
-                        //$input['cliente_id'] = $adeudo->cliente->id;
-                        //$input['adeudo_id'] = $adeudo->id;
-                        //dd($adeudo);
-                        $datos_calculados = $this->predefinido($adeudo->id);
-                        //dd($datos_calculados);
-                        $input['subtotal'] = $datos_calculados['subtotal'];
-                        $input['descuento'] = $datos_calculados['descuento'];
-                        $input['recargo'] = $datos_calculados['recargo'];
-                        $input['total'] = $datos_calculados['total'];
-                        $input['fecha_limite'] = $datos_calculados['fecha_limite'];
-                        //$input['cliente_id'] = $adeudo->cliente_id;
-                        //$input['usu_alta_id'] = 1;
-                        //$input['usu_mod_id'] = 1;
-                        $adeudo_pago_online->update($input);
-                        //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
-                    }
+                    //if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
+                    //$input['matricula'] = $adeudo->cliente->matricula;
+                    //$input['cliente_id'] = $adeudo->cliente->id;
+                    //$input['adeudo_id'] = $adeudo->id;
+                    //dd($adeudo);
+                    $datos_calculados = $this->predefinido($adeudo->id);
+                    //dd($datos_calculados);
+                    $input['subtotal'] = $datos_calculados['subtotal'];
+                    $input['descuento'] = $datos_calculados['descuento'];
+                    $input['recargo'] = $datos_calculados['recargo'];
+                    $input['total'] = $datos_calculados['total'];
+                    $input['fecha_limite'] = $datos_calculados['fecha_limite'];
+                    //$input['cliente_id'] = $adeudo->cliente_id;
+                    //$input['usu_alta_id'] = 1;
+                    //$input['usu_mod_id'] = 1;
+                    $adeudo_pago_online->update($input);
+                    //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
+                    //}
                 }
             }
         }
@@ -564,7 +582,8 @@ class FichaPagosController extends Controller
         if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
             $datosMultipagos = array();
             $datosMultipagos['pago_id'] = $pago->id;
-            $datosMultipagos['mp_account'] = 6683;
+            $parametros = Param::where('llave', 'mp_account')->first();
+            $datosMultipagos['mp_account'] = $parametros->valor;
             $datosMultipagos['mp_product'] = $cajaLn->cajaConcepto->cve_multipagos;
             $datosMultipagos['mp_order'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $caja->id) . $this->formatoDato('000000', $caja->consecutivo);
             $datosMultipagos['mp_reference'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $pago->id) . $this->formatoDato('000000', $pago->consecutivo);
@@ -602,7 +621,8 @@ class FichaPagosController extends Controller
             $peticion_multipagos->save();
             //PeticionMultipago::find($adeudo_pago_online->peticion_multipago_id);
 
-            $datosMultipagos['mp_account'] = 6683;
+            $parametros = Param::where('llave', 'mp_account')->first();
+            $datosMultipagos['mp_account'] = $parametros->valor;
             $datosMultipagos['mp_product'] = $cajaLn->cajaConcepto->cve_multipagos;
             $datosMultipagos['mp_order'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $caja->id) . $this->formatoDato('000000', $caja->consecutivo);
             $datosMultipagos['mp_reference'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $pago->id) . $this->formatoDato('000000', $pago->consecutivo);
@@ -939,6 +959,50 @@ class FichaPagosController extends Controller
                     'Usuario' => $usuario->valor
                 ),
                 'cfdi' => array(
+                    'Addenda' => array(
+                        'DomicilioEmisor' => array(
+                            'Calle' => $cliente->plantel->calle,
+                            'CodigoPostal' => $cliente->plantel->cp,
+                            'Colonia' => $cliente->plantel->colonia,
+                            'Estado' => $cliente->festado,
+                            //'Localidad' => $cliente->flocalidad,
+                            'Municipio' => $cliente->plantel->municipio,
+                            'NombreCliente' => $cliente->plantel->nombre_corto,
+                            'NumeroExterior' => $cliente->plantel->no_ext,
+                            'NumeroInterior' => $cliente->plantel->no_int,
+                            'Pais' => 'México',
+                            //'Referencia'=>$cliente->,
+                            //'Telefono'=>
+                        ),
+                        'DomicilioReceptor' => array(
+                            'Calle' => $cliente->fcalle,
+                            'CodigoPostal' => $cliente->fcp,
+                            'Colonia' => $cliente->fcolonia,
+                            'Estado' => $cliente->festado,
+                            'Localidad' => $cliente->flocalidad,
+                            'Municipio' => $cliente->fmunicipio,
+                            'NombreCliente' => $cliente->fno_interior,
+                            'NumeroExterior' => $cliente->fno_exterior,
+                            'NumeroInterior' => $cliente->fno_interior,
+                            'Pais' => $cliente->fpais,
+                            //'Referencia'=>$cliente->,
+                            //'Telefono'=>
+                        ),
+                        'DomicilioSucursal' => array(
+                            'Calle' => $cliente->plantel->calle,
+                            'CodigoPostal' => $cliente->plantel->cp,
+                            'Colonia' => $cliente->plantel->colonia,
+                            'Estado' => $cliente->festado,
+                            //'Localidad' => $cliente->flocalidad,
+                            'Municipio' => $cliente->plantel->municipio,
+                            'NombreCliente' => $cliente->plantel->nombre_corto,
+                            'NumeroExterior' => $cliente->plantel->no_ext,
+                            'NumeroInterior' => $cliente->plantel->no_int,
+                            'Pais' => 'México',
+                            //'Referencia'=>$cliente->,
+                            //'Telefono'=>
+                        ),
+                    ),
                     'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
                     //Plantel emisor de factura
                     'Emisor' => array(
@@ -953,23 +1017,31 @@ class FichaPagosController extends Controller
                     ),
                     //'CondicionesDePago' => 'CONDICIONES', //opcional
                     'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
+                    'Fecha' => date('Y-m-d\TH:i:s'),
                     'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
                     'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
                     'Moneda' => 'MXN', //Default
                     'Referencia' => $pago->csc_simplificado,  //Definir valor
                     'Conceptos' => array('ConceptoR' => array(
                         'Cantidad' => '1',
-                        'ClaveProdServ' => '01010101', //Definir valor defaul de acuerdo al SAT
+                        'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
                         'ClaveUnidad' => 'E48',
                         'Unidad' => 'Servicio', //Definir valor default
-                        'Descripcion' => $caja->cajaLn->cajaConcepto->name,
-                        /*'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
-                            'Base' => '17000',
-                            'Importe' => '2720.00',
+                        'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura,
+                        'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
+                            'Base' => number_format($pago->monto, 2, '.', ''),
+                            'Importe' => '0.00',
                             'Impuesto' => '002',
-                            'TasaOCuota' => '0.160000',
-                            'TipoFactor' => 'Tasa'
-                        ),),),*/
+                            'TasaOCuota' => '0.000000',
+                            'TipoFactor' => 'Excento'
+                        ),),),
+                        'InstEducativas' => array(
+                            'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
+                            'CURP' => $cliente->curp,
+                            'NivelEducativo' => $adeudo->combinacionCliente->grado->nivelEducativoSat->name,
+                            'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
+                            'RfcPago' => $cliente->frfc
+                        ),
                         //'NoIdentificacion' => '00003', //Opcional
                         'Importe' => number_format($pago->monto, 2, '.', ''),
                         'ValorUnitario' => number_format($pago->monto, 2, '.', '')

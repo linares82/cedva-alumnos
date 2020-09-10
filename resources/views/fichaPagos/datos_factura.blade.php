@@ -5,8 +5,8 @@
 <div class="row">
     <div class="col-md-12">
         <h4>Datos Para Facturar</h4>
-        <span class="label label-danger label-white middle">Campos marcados con * son obligatorios</span>
-
+        <span class="label label-danger label-white middle">Campos marcados con * son obligatorios.</span>
+        <span class="label label-warning label-white middle">En caso de obtener un mensaje que impida su facturación, reportarlo a su sucursal.</span>
     </div>
 
     @if (session('error'))
@@ -38,6 +38,13 @@
                 <span class="help-block">{{ $errors->first("tipo_persona_id") }}</span>
                 @endif
             </div>
+            <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
+                <label for="curp-field">*CURP</label>
+                {!! Form::text("curp", null, array("class" => "form-control input-sm", "id" => "curp-field")) !!}
+                @if($errors->has("curp"))
+                <span class="help-block">{{ $errors->first("curp") }}</span>
+                @endif
+            </div>
             <div class="form-group col-md-4 @if($errors->has('frazon')) has-error @endif">
                 <label for="frazon-field">*Nombre o Razon Social</label>
                 {!! Form::text("frazon", null, array("class" => "form-control input-sm", "id" => "frazon-field")) !!}
@@ -45,14 +52,14 @@
                 <span class="help-block">{{ $errors->first("frazon") }}</span>
                 @endif
             </div>
-            <div class="form-group col-md-4 @if($errors->has('frfc')) has-error @endif">
+            <div class="form-group col-md-4 @if($errors->has('frfc')) has-error @endif" style="clear:left;">
                 <label for="frfc-field">*RFC</label>
                 {!! Form::text("frfc", null, array("class" => "form-control input-sm", "id" => "frfc-field")) !!}
                 @if($errors->has("frfc"))
                 <span class="help-block">{{ $errors->first("frfc") }}</span>
                 @endif
             </div>
-            <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif" style="clear:left;">
+            <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif" >
                 <label for="fcalle-field">*Calle</label>
                 {!! Form::text("fcalle", null, array("class" => "form-control input-sm", "id" => "fcalle-field")) !!}
                 @if($errors->has("fcalle"))
