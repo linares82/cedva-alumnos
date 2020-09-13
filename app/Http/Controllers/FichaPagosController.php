@@ -13,11 +13,13 @@ use App\CombinacionCliente;
 use App\CuentasEfectivo;
 use App\Empleado;
 use App\ImpresionTicket;
+use App\NivelEducativoSat;
 use App\Pago;
 use App\Param;
 use App\PeticionMultipago;
 use App\Plantel;
 use App\PromoPlanLn;
+use App\Seccion;
 use App\SuccessMultipago;
 use App\SerieFolioSimplificado;
 use App\TipoPersona;
@@ -45,12 +47,14 @@ class FichaPagosController extends Controller
         $combinaciones = CombinacionCliente::where('cliente_id', $cliente->id)
             ->where('cuenta_ticket_pago', '>', 0)
             ->whereNull('deleted_at')
+            //->with('grado')
             ->get();
         //dd($combinaciones);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)->get();
+        $secciones_validas = Seccion::all();
 
-        return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones'));
+        return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas'));
     }
 
     public function actualizarAdeudosPagos($cliente, $plantel)
@@ -59,6 +63,8 @@ class FichaPagosController extends Controller
         $plantel = Plantel::find($plantel);
         //dd($plantel);
         $conceptosValidos = $plantel->conceptoMultipagos->pluck('id');
+        $seccionesValidas = Seccion::pluck('name');
+        //dd($seccionesValidas);
         //dd($conceptosValidos);
         /*$mes = Date('m');
 
@@ -95,20 +101,22 @@ class FichaPagosController extends Controller
         }
         $anio = Date('Y');
         */
-        $adeudos_pagados = Adeudo::select('adeudos.*')
+        $adeudos_pagados = Adeudo::select('adeudos.*', 'g.seccion')
             ->join('caja_conceptos as cajaCon', 'cajaCon.id', '=', 'adeudos.caja_concepto_id')
             ->whereIn('cajaCon.cve_multipagos', $conceptosValidos)
             ->where('adeudos.cliente_id', $cliente)
             ->where('adeudos.pagado_bnd', 1)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
+            ->join('grados as g', 'g.id', '=', 'cc.grado_id')
+            //->whereIn('g.seccion', $seccionesValidas)
             ->orderBy('adeudos.id');
         /*->whereNull('cc.deleted_at')
             ->with('caja')
             ->with('cliente')
             ->with('pagoOnLine')
             ->get();*/
-        $adeudos = Adeudo::select('adeudos.*')
+        $adeudos = Adeudo::select('adeudos.*', 'g.seccion')
             ->join('caja_conceptos as cajaCon', 'cajaCon.id', '=', 'adeudos.caja_concepto_id')
             /*->whereMonth('fecha_pago', '>=', $mesPasado)
             ->whereMonth('fecha_pago', '<=', $mesFuturo)
@@ -121,6 +129,8 @@ class FichaPagosController extends Controller
             ->take(1)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
+            ->join('grados as g', 'g.id', '=', 'cc.grado_id')
+            //->whereIn('g.seccion', $seccionesValidas)
             ->whereNull('cc.deleted_at')
             ->with('caja')
             ->with('cliente')
@@ -228,9 +238,14 @@ class FichaPagosController extends Controller
             $beca_a = 0;
             foreach ($cliente->autorizacionBecas as $beca) {
                 //dd(is_null($beca->deleted_at));
+                $mesAdeudo = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->month;
+                $mesInicio = Carbon::createFromFormat('Y-m-d', $beca->lectivo->inicio)->month;
+                $mesFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->month;
                 if (
-                    $beca->lectivo->inicio <= $adeudo->fecha_pago and
-                    $beca->lectivo->fin >= $adeudo->fecha_pago and
+                    (($beca->lectivo->inicio <= $adeudo->fecha_pago and
+                        $beca->lectivo->fin >= $adeudo->fecha_pago) or
+                        ($mesInicio <= $mesAdeudo and
+                            $mesFin >= $mesAdeudo)) and
                     $beca->aut_dueno == 4 and
                     is_null($beca->deleted_at)
                 ) {
@@ -916,6 +931,7 @@ class FichaPagosController extends Controller
             'festado' => 'required',
             'fpais' => 'required',
             'fcp' => 'required',
+            'curp' => 'required',
         ];
         $customMessages = [
             'required' => 'El campo es obligatorio, capturar un valor.'
@@ -924,6 +940,7 @@ class FichaPagosController extends Controller
         //dd($v);
         $adeudoPagoOnLine = AdeudoPagoOnLine::find($id);
         $adeudo = $adeudoPagoOnLine->adeudo;
+        $nivelEducativoSat = NivelEducativoSat::find($adeudo->combinacionCliente->grado->nivel_educativo_sat_id);
         $cliente = $adeudoPagoOnLine->cliente;
         $cliente->update($datos);
         $pago = $adeudoPagoOnLine->pago;
@@ -951,6 +968,8 @@ class FichaPagosController extends Controller
             $client = new SoapClient($wsdlUrl, $soapClientOptions);
 
             //dd($client->__getFunctions());
+            $fecha_solicitud_factura_tabla = date('Y-m-d H:i:s');
+            $fecha_solicitud_factura_service = date('Y-m-d\TH:i:s');
 
             $objetosArray = array(
                 'credenciales' => array(
@@ -970,7 +989,7 @@ class FichaPagosController extends Controller
                             'NombreCliente' => $cliente->plantel->nombre_corto,
                             'NumeroExterior' => $cliente->plantel->no_ext,
                             'NumeroInterior' => $cliente->plantel->no_int,
-                            'Pais' => 'México',
+                            'Pais' => 'Mexico',
                             //'Referencia'=>$cliente->,
                             //'Telefono'=>
                         ),
@@ -998,7 +1017,7 @@ class FichaPagosController extends Controller
                             'NombreCliente' => $cliente->plantel->nombre_corto,
                             'NumeroExterior' => $cliente->plantel->no_ext,
                             'NumeroInterior' => $cliente->plantel->no_int,
-                            'Pais' => 'México',
+                            'Pais' => 'Mexico',
                             //'Referencia'=>$cliente->,
                             //'Telefono'=>
                         ),
@@ -1017,7 +1036,7 @@ class FichaPagosController extends Controller
                     ),
                     //'CondicionesDePago' => 'CONDICIONES', //opcional
                     'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
-                    'Fecha' => date('Y-m-d\TH:i:s'),
+                    'Fecha' => $fecha_solicitud_factura_service,
                     'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
                     'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
                     'Moneda' => 'MXN', //Default
@@ -1030,15 +1049,15 @@ class FichaPagosController extends Controller
                         'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura,
                         'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
                             'Base' => number_format($pago->monto, 2, '.', ''),
-                            'Importe' => '0.00',
+                            //'Importe' => '0.00',
                             'Impuesto' => '002',
-                            'TasaOCuota' => '0.000000',
-                            'TipoFactor' => 'Excento'
+                            //'TasaOCuota' => '0.000000',
+                            'TipoFactor' => 'Exento'
                         ),),),
                         'InstEducativas' => array(
                             'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
                             'CURP' => $cliente->curp,
-                            'NivelEducativo' => $adeudo->combinacionCliente->grado->nivelEducativoSat->name,
+                            'NivelEducativo' => $nivelEducativoSat->name,
                             'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
                             'RfcPago' => $cliente->frfc
                         ),
@@ -1069,10 +1088,12 @@ class FichaPagosController extends Controller
                 $pago->uuid = $xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"];
                 $pago->cbb = $result->CBB;
                 $pago->xml = $result->XML;
+                $pago->fecha_solicitud_factura = $fecha_solicitud_factura_tabla;
                 $pago->save();
             }
         } catch (\Exception $e) {
             echo $e->getMessage();
+            dd($e->getMessage());
         }
         return redirect()->route('fichaAdeudos.index');
         //dd($cliente->toArray());
@@ -1235,5 +1256,48 @@ class FichaPagosController extends Controller
             echo $e->getMessage();
         }
         //dd($result);
+    }
+
+    public function datosFiscales(Request $request)
+    {
+        $datos = $request->all();
+
+        //$adeudoPagoOnLine = AdeudoPagoOnLine::find($datos['pagoOnLine']);
+        $cliente = Cliente::where('matricula', Auth::user()->name)->first();
+        //dd($cliente);
+        $tipoPersonas = TipoPersona::pluck('name', 'id');
+        //$adeudo_pago_on_line = $adeudoPagoOnLine->id;
+        return view('fichaPagos.datos_fiscales', compact('cliente', 'tipoPersonas'));
+    }
+
+    public function confirmarDatosFiscales(Request $request, $id)
+    {
+        $datos = $request->except('adeudo_pago_on_line');
+        //dd($datos);
+        $rules = [
+            'tipo_persona_id' => 'required',
+            'frazon' => 'required',
+            'frfc' => 'required',
+            'fcalle' => 'required',
+            'fno_exterior' => 'required',
+            'fcolonia' => 'required',
+            'festado' => 'required',
+            'fpais' => 'required',
+            'fcp' => 'required',
+            'curp' => 'required',
+        ];
+        $customMessages = [
+            'required' => 'El campo es obligatorio, capturar un valor.'
+        ];
+        $request->validate($rules, $customMessages);
+        //dd($v);
+        $adeudoPagoOnLine = AdeudoPagoOnLine::find($id);
+
+        $cliente = Cliente::find($id);
+        $cliente->update($datos);
+
+        return redirect()->route('fichaAdeudos.index');
+        //dd($cliente->toArray());
+        //dd($adeudoPagoOnLine);
     }
 }

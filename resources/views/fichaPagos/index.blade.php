@@ -51,7 +51,7 @@
         @foreach($combinaciones as $combinacion)
         <div class="widget-box widget-color-orange ui-sortable-handle" id="widget-box-1">
             <div class="widget-header">
-                <h5 class="widget-title">Detalle de Pagos de {{ $combinacion->grado->name }}</h5>
+                <h5 class="widget-title">Detalle de Pagos de {{ $combinacion->grado->name}}</h5>
                 <div class="widget-toolbar">
                     <div class="widget-menu">
                         <a href="#" data-action="settings" data-toggle="dropdown">
@@ -120,11 +120,16 @@
                                         }
                                     }
 
+                                    $existe_seccion_valida=0;
+                                    $resultado=$secciones_validas->where('name', $adeudo->seccion)->first();
+                                    if(!is_null($resultado)){
+                                        $existe_seccion_valida=1;
+                                    }
                                     @endphp
 
                                     @if($adeudo->pagado_bnd==1)
                                     <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI</span>
-                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago>date('Y-m-d'))
+                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago>date('Y-m-d') and $existe_seccion_valida==1)
                                     <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }}</span>
 
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
@@ -151,22 +156,28 @@
                                     </a>
 
                                         @if(Auth::user()->nivel==1 )
-                                        <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
-                                            Facturar
-                                            <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
-                                        </a>
+
                                         @php
                                         $mesHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
                                         $mesFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->month;
+                                        $fechaPago=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $adeudo->caja->pago->updated_at);
+                                        $fechaHoy=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s'));
+                                        //dd($fechaPago->diffInHours($fechaHoy));
 
                                         @endphp
 
-                                            @if(is_null($adeudo->caja->pago->uuid) and is_null($adeudo->caja->pago->cbb) and is_null($adeudo->caja->pago->xml) and $mesHoy==$mesFechaPago)
-                                            <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" target="_blank" class="btn btn-inverse btn-xs">
+                                            @if(is_null($adeudo->caja->pago->uuid) and
+                                                is_null($adeudo->caja->pago->cbb) and
+                                                is_null($adeudo->caja->pago->xml) and
+                                                $mesHoy==$mesFechaPago and
+                                                $fechaPago->diffInHours($fechaHoy)<=72)
+                                            <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
                                                 Facturar
                                                 <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
                                             </a>
-                                            @elseif(!is_null($adeudo->caja->pago->uuid) and !is_null($adeudo->caja->pago->cbb) and !is_null($adeudo->caja->pago->xml))
+                                            @elseif(!is_null($adeudo->caja->pago->uuid) and
+                                                    !is_null($adeudo->caja->pago->cbb) and
+                                                    !is_null($adeudo->caja->pago->xml))
                                             <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
                                                 <i class="ace-icon fa fa-download"></i> Pdf
                                             </a>

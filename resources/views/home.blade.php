@@ -15,7 +15,9 @@
                             </div>
                         @endif
 
-                        Estas Dentro.
+                        Bienvenido, te sugerimos encarecidamente que actualices tus
+                        <a href="{{ route('fichaAdeudos.datosFiscales') }}">datos fiscales </a>
+                        para facilitar tramites futuros. Gracias.
                     </div>
                 </div>
             </div>

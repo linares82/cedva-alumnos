@@ -113,6 +113,23 @@ Route::post(
     )
 )->middleware('auth');
 Route::get(
+    '/fichaAdeudos/datosFiscales',
+    array(
+        'as' => 'fichaAdeudos.datosFiscales',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@datosFiscales'
+    )
+)->middleware('auth');
+
+Route::post(
+    '/fichaAdeudos/confirmarDatosFiscales/{id}',
+    array(
+        'as' => 'fichaAdeudos.confirmarDatosFiscales',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@confirmarDatosFiscales'
+    )
+)->middleware('auth');
+Route::get(
     '/fichaAdeudos/getFacturaXmlByUuid',
     array(
         'as' => 'fichaAdeudos.getFacturaXmlByUuid',

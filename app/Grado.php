@@ -3,8 +3,6 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\GetAllDataTrait;
-use App\Traits\RelationManagerTrait;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Grado extends Model
@@ -20,7 +18,8 @@ class Grado extends Model
     //Mass Assignment
     protected $fillable = [
         'nivel_id', 'name', 'especialidad_id', 'plantel_id', 'usu_alta_id', 'usu_mod_id', 'cct', 'seccion',
-        'precio_online', 'mexico_bnd', 'nombre2', 'modulo_final_id', 'rvoe', 'denominacion', 'fec_rvoe'
+        'precio_online', 'mexico_bnd', 'nombre2', 'modulo_final_id', 'rvoe', 'denominacion', 'fec_rvoe', 'id_mapa',
+        'clave_servicio', 'nivel_educativo_sat_id'
     ];
 
     public function usu_alta()
@@ -70,6 +69,8 @@ class Grado extends Model
     {
         return $this->hasMany('App\CombinacionCliente');
     } // end
-
-
+    public function nivelEducativoSat()
+    {
+        return $this->belongsTo('App\NivelEducativoSat');
+    } // end
 }

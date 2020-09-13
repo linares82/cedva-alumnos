@@ -189,10 +189,19 @@
 
                     <div id="sidebar" class="sidebar h-sidebar navbar-collapse collapse ace-save-state" data-sidebar="true" data-sidebar-scroll="true" data-sidebar-hover="true">
                         <ul class="nav nav-list">
-                            <li class="hover">
+                            <!--<li class="hover">
                                 <a href="#">
                                     <i class="menu-icon fa fa-tachometer"></i>
                                     <span class="menu-text"> Tablero Principal </span>
+                                </a>
+
+                                <b class="arrow"></b>
+                            </li>-->
+
+                            <li class="hover">
+                                <a href="{{ route('fichaAdeudos.datosFiscales') }}">
+                                    <i class="menu-icon fa fa-user"></i>
+                                    <span class="menu-text">Datos Fiscales</span>
                                 </a>
 
                                 <b class="arrow"></b>
@@ -206,6 +215,8 @@
 
                                 <b class="arrow"></b>
                             </li>
+
+
 
                         </ul><!-- /.nav-list -->
                     </div>

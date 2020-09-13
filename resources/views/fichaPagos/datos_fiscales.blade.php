@@ -29,7 +29,7 @@
 
     @endif
 
-    {!! Form::model($cliente, array('route' => array('fichaAdeudos.confirmarFactura', $adeudo_pago_on_line),'method' => 'post','id'=>'frm')) !!}
+    {!! Form::model($cliente, array('route' => array('fichaAdeudos.confirmarDatosFiscales', $cliente->id),'method' => 'post','id'=>'frm')) !!}
             <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
                 <label for="curp-field">*CURP del Alumno</label>
                 {!! Form::text("curp", null, array("class" => "form-control input-sm", "id" => "curp-field", 'onkeyup'=>"javascript:this.value=this.value.toUpperCase();")) !!}
