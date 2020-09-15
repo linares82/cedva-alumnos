@@ -165,7 +165,7 @@ $(document).ready(function(){
                     "CP: "+cp+"<br>",
             buttons: {
                 confirm: {
-                    label: "Facturar",
+                    label: "Guardar",
                     className: "btn-primary btn-sm",
                 },
                 cancel: {

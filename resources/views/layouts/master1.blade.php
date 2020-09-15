@@ -304,6 +304,11 @@
         <script src="{{ asset('ace-master/assets/js/bootbox.js') }}" ></script>
 
         <script type="text/javascript">
+            $("button[type=submit]").click(function(){
+                $(this).prop('disabled', true);
+                //$(this).closest('form').submit();
+                //$('#formulario').submit();
+            });
             $(document).ready(function () {
                 $("#search_form").hide();
                 $("#search_btn").click(function () {

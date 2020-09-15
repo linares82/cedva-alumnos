@@ -42,7 +42,9 @@
         </div>
 
     </div>
-
+    <div class="col-md-12">
+        <span class="label label-info label-white middle">Le recordamos que solo puede facturar pagos cuya fecha limite sea del mismo mes en curso y que despues de efectuar su pago, cuenta con 72 horas como limite para emitir su factura.</span>
+    </div>
 
     <div class="col-md-12">
         @php
@@ -121,21 +123,28 @@
                                     }
 
                                     $existe_seccion_valida=0;
-                                    $resultado=$secciones_validas->where('name', $adeudo->seccion)->first();
+                                    //dd($adeudo->combinacionCliente->grado->seccion);
+                                    $resultado=$secciones_validas->where('name', $adeudo->combinacionCliente->grado->seccion)->first();
                                     if(!is_null($resultado)){
                                         $existe_seccion_valida=1;
                                     }
+                                    //dd($existe_seccion_valida);
                                     @endphp
 
                                     @if($adeudo->pagado_bnd==1)
                                     <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI</span>
-                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total) and $adeudo->fecha_pago>date('Y-m-d') and $existe_seccion_valida==1)
+                                    @elseif($adeudo->pagado_bnd==0 and
+                                            isset(optional($adeudo->pagoOnLine)->total) and
+                                            $adeudo->fecha_pago>date('Y-m-d') and
+                                            $existe_seccion_valida==1)
                                     <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }}</span>
 
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
 
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
-                                    @elseif($adeudo->pagado_bnd==0 and isset(optional($adeudo->pagoOnLine)->total))
+                                    @elseif($adeudo->pagado_bnd==0 and
+                                            isset(optional($adeudo->pagoOnLine)->total) and
+                                            $existe_seccion_valida==1)
                                     <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO-{{ $respuesta_msj }}</span>
 
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
@@ -155,7 +164,7 @@
                                         <i class="ace-icon fa fa-print  align-top bigger-125 icon-on-right"></i>
                                     </a>
 
-                                        @if(Auth::user()->nivel==1 )
+                                        <!--@@if(Auth::user()->nivel==0 )-->
 
                                         @php
                                         $mesHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
@@ -169,8 +178,8 @@
                                             @if(is_null($adeudo->caja->pago->uuid) and
                                                 is_null($adeudo->caja->pago->cbb) and
                                                 is_null($adeudo->caja->pago->xml) and
-                                                $mesHoy==$mesFechaPago and
-                                                $fechaPago->diffInHours($fechaHoy)<=72)
+                                                $mesHoy==$mesFechaPago /*and
+                                                $fechaPago->diffInHours($fechaHoy)<=72*/)
                                             <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
                                                 Facturar
                                                 <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
@@ -186,7 +195,7 @@
                                                 <i class="ace-icon fa fa-download"></i> Xml
                                             </a>
                                             @endif
-                                        @endif
+                                        <!--@@endif-->
                                     @endif
 
                                 </td>

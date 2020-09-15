@@ -46,7 +46,7 @@ class Cliente extends Model
         'justificacion_beca', 'bnd_regingreso', 'escolaridad_id', 'interes_estudio_id',
         'no_poliza', 'nacionalidad', 'edad', 'estado_civil_id', 'estado_nacimiento_id', 'fec_reingreso',
         'pagador_id', 'discapacidad_id', 'bnd_trabaja', 'bnd_indigena', 'tipo_persona_id', 'frfc', 'frazon',
-        'fcalle', 'fno_exterior', 'fno_interior', 'fcolonia', 'fmunicipio', 'festado', 'fpais', 'fcp'
+        'fcalle', 'fno_exterior', 'fno_interior', 'fcolonia', 'fciudad', 'fmunicipio', 'festado', 'fpais', 'fcp'
     ];
 
     public function usu_alta()
