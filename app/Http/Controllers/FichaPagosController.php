@@ -165,8 +165,8 @@ class FichaPagosController extends Controller
                 if (is_null($adeudo_pago_online)) {
                     $input['matricula'] = $adeudo->cliente->matricula;
                     $input['adeudo_id'] = $adeudo->id;
-                    $input['pago_id'] = 0;
-                    $input['caja_id'] = 0;
+                    $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                    $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
                     $datos_calculados = $this->predefinido($adeudo->id);
                     //dd($datos_calculados);
                     $input['subtotal'] = $datos_calculados['subtotal'];
@@ -1031,7 +1031,7 @@ class FichaPagosController extends Controller
                     //Cliente
                     'Receptor' => array(
                         'Nombre' => $cliente->frazon,
-                        'Rfc' => 'TEST010203001', //$cliente->frfc
+                        'Rfc' => $cliente->frfc, //'TEST010203001',
                         'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
                     ),
                     //'CondicionesDePago' => 'CONDICIONES', //opcional
