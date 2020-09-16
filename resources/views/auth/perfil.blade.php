@@ -8,7 +8,7 @@
             <div class="panel panel-default">
                 <div class="panel-heading">Personalizar su contraseña por favor</div>
                 <div class="panel-body">
-                    {!! Form::model($user, array('route' => array('users.updatePerfil'),'method' => 'post')) !!}
+                    {!! Form::model($user, array('route' => array('users.updatePerfil'),'method' => 'post', 'id'=>'frm')) !!}
                         {{ csrf_field() }}
                         <div class="form-group col-md-6 @if($errors->has('email')) has-error @endif">
                             <label for="email-field">Mail</label>
@@ -27,7 +27,7 @@
                         </div>
                         <div class="form-group">
                             <div class="col-md-6 col-md-offset-4">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" id="btnGuardar">
                                     Guardar
                                 </button>
                                 <a class="btn btn-danger" href="{{ route('home') }}">Cancelar</a>
@@ -40,3 +40,19 @@
     </div>
 </div>
 @endsection
+@push('scripts')
+<script type="text/javascript">
+$(document).ready(function(){
+    $("#btnGuardar").on('click', function(e) {
+    //$('#frm_multipagos').attr("action", data.datos.url_peticion);
+    $('#frm').submit();
+    });
+
+});
+
+function formatoFecha(texto){
+  return texto.replace(/^(\d{4})-(\d{2})-(\d{2})$/g,'$1/$2/$3');
+}
+
+</script>
+@endpush
