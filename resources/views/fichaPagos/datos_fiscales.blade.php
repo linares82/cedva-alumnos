@@ -96,6 +96,13 @@
                 <span class="help-block">{{ $errors->first("fciudad") }}</span>
                 @endif
             </div>
+            <div class="form-group col-md-4 @if($errors->has('fmunicipio')) has-error @endif">
+                <label for="fmunicipio-field">*Municipio</label>
+                {!! Form::text("fmunicipio", null, array("class" => "form-control input-sm", "id" => "fmunicipio-field")) !!}
+                @if($errors->has("fmunicipio"))
+                <span class="help-block">{{ $errors->first("fmunicipio") }}</span>
+                @endif
+            </div>
             <div class="form-group col-md-4 @if($errors->has('festado')) has-error @endif">
                 <label for="festado-field">*Estado</label>
                 {!! Form::text("festado", null, array("class" => "form-control input-sm", "id" => "festado-field")) !!}
