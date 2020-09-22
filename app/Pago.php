@@ -18,7 +18,7 @@ class Pago extends Model
     protected $fillable = [
         'caja_id', 'monto', 'fecha', 'forma_pago_id', 'referencia', 'usu_alta_id', 'usu_mod_id',
         'consecutivo', 'cuenta_efectivo_id', 'bnd_pagado', 'bnd_referenciado', 'csc_simplificado',
-        'cbb', 'uuid', 'xml', 'fecha_solicitud_factura'
+        'cbb', 'uuid', 'xml', 'fecha_solicitud_factura','regimen_fiscal', 'fcuenta', 'fpassword', 'fusuario'
     ];
 
     public function usu_alta()

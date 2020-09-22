@@ -18,7 +18,7 @@
             <div class="profile-info-row">
                 <div class="profile-info-name"> Escuela </div>
                 <div class="profile-info-value">
-                     {{ $cliente->plantel->razon }}
+                     {{ $cliente->plantel->nombre_corto }}
                 </div>
             </div>
             <div class="profile-info-row">

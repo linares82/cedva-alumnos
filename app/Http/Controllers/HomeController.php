@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Param;
 use Illuminate\Http\Request;
 use Auth;
+use Hash;
 
 class HomeController extends Controller
 {
@@ -27,7 +28,10 @@ class HomeController extends Controller
     {
         $param = Param::where('llave', 'pasDefault')->first();
         //dd(Auth::user()->password . " - " . $param->valor);
-        if (Auth::user()->password == $param->valor) {
+        //dd(is_null(Auth::user()->remember_token));
+        if (is_null(Auth::user()->remember_token)) {
+            Auth::user()->remember_token = 1;
+            Auth::user()->save();
             return redirect(route('users.editPerfil', Auth::user()->id));
         } else {
             return view('home');

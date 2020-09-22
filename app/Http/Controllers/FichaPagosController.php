@@ -126,7 +126,7 @@ class FichaPagosController extends Controller
             ->where('adeudos.cliente_id', $cliente)
             ->where('adeudos.pagado_bnd', 0)
             ->orderBy('adeudos.id')
-            ->take(1)
+            ->take(3)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->join('grados as g', 'g.id', '=', 'cc.grado_id')
@@ -509,7 +509,7 @@ class FichaPagosController extends Controller
             $inputCaja['st_caja_id'] = 0;
             $inputCaja['usu_alta_id'] = 1;
             $inputCaja['usu_mod_id'] = 1;
-            $consecutivo = $plantel->consecutivo++;
+            $consecutivo = ++$plantel->consecutivo;
             $plantel->save();
             $inputCaja['consecutivo'] = $consecutivo;
             $caja = Caja::create($inputCaja);
@@ -567,7 +567,7 @@ class FichaPagosController extends Controller
             $inputPago['usu_alta_id'] = 1;
             $inputPago['usu_mod_id'] = 1;
 
-            $consecutivo = $plantel->consecutivo_pago++;
+            $consecutivo = ++$plantel->consecutivo_pago;
             $plantel->save();
             $inputPago['consecutivo'] = $consecutivo;
 
@@ -943,13 +943,14 @@ class FichaPagosController extends Controller
         $nivelEducativoSat = NivelEducativoSat::find($adeudo->combinacionCliente->grado->nivel_educativo_sat_id);
         $cliente = $adeudoPagoOnLine->cliente;
         $cliente->update($datos);
+        $plantel = $adeudoPagoOnLine->cliente->plantel;
         $pago = $adeudoPagoOnLine->pago;
         $caja = $adeudoPagoOnLine->caja;
         //Parametros para el webservice
         $url = Param::where('llave', 'webServiceFacturacion')->first();
-        $cuenta = Param::where('llave', 'cuentaFacturacion')->first();
-        $password = Param::where('llave', 'passwordFacturacion')->first();
-        $usuario = Param::where('llave', 'usuarioFacturacion')->first();
+        //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
+        //$password = Param::where('llave', 'passwordFacturacion')->first();
+        //$usuario = Param::where('llave', 'usuarioFacturacion')->first();
 
         try {
             $opts = array(
@@ -973,9 +974,9 @@ class FichaPagosController extends Controller
 
             $objetosArray = array(
                 'credenciales' => array(
-                    'Cuenta' => $cuenta->valor,
-                    'Password' => $password->valor,
-                    'Usuario' => $usuario->valor
+                    'Cuenta' => $plantel->fcuenta,
+                    'Password' => $plantel->fpassword,
+                    'Usuario' => $plantel->fusuario
                 ),
                 'cfdi' => array(
                     'Addenda' => array(
