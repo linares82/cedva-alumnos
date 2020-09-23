@@ -98,7 +98,16 @@
                                 <td class="">{{ $adeudo->cajaConcepto->name }}</td>
                                 <td>
                                     @if($adeudo->pagado_bnd==1)
-                                    {{ number_format(optional($adeudo->caja->pago)->monto,2) }}
+                                    @php
+
+                                    $pagos = App\Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
+                                    //dd($pagos->toArray());
+                                    $total_pagos = 0;
+                                    foreach ($pagos as $pago) {
+                                        $total_pagos = $total_pagos + $pago->monto;
+                                    }
+                                    @endphp
+                                    {{ number_format($total_pagos,2) }}
                                     @else
                                     {{ optional($adeudo->pagoOnLine)->total }}
                                     @endif

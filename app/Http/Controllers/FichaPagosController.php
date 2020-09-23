@@ -972,6 +972,13 @@ class FichaPagosController extends Controller
             $fecha_solicitud_factura_tabla = date('Y-m-d H:i:s');
             $fecha_solicitud_factura_service = date('Y-m-d\TH:i:s');
 
+            $pagos = Pago::where('caja_id', $adeudo->caja_id)->get();
+            //dd($pagos->toArray());
+            $total_pagos = 0;
+            foreach ($pagos as $pago) {
+                $total_pagos = $total_pagos + $pago->monto;
+            }
+
             $objetosArray = array(
                 'credenciales' => array(
                     'Cuenta' => $plantel->fcuenta,
@@ -1049,7 +1056,7 @@ class FichaPagosController extends Controller
                         'Unidad' => 'Servicio', //Definir valor default
                         'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura,
                         'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
-                            'Base' => number_format($pago->monto, 2, '.', ''),
+                            'Base' => number_format($total_pagos, 2, '.', ''),
                             //'Importe' => '0.00',
                             'Impuesto' => '002',
                             //'TasaOCuota' => '0.000000',
@@ -1063,11 +1070,11 @@ class FichaPagosController extends Controller
                             'RfcPago' => $cliente->frfc
                         ),
                         //'NoIdentificacion' => '00003', //Opcional
-                        'Importe' => number_format($pago->monto, 2, '.', ''),
-                        'ValorUnitario' => number_format($pago->monto, 2, '.', '')
+                        'Importe' => number_format($total_pagos, 2, '.', ''),
+                        'ValorUnitario' => number_format($total_pagos, 2, '.', '')
                     ),),
-                    'SubTotal' => number_format($pago->monto, 2, '.', ''),
-                    'Total' => number_format($pago->monto, 2, '.', '')
+                    'SubTotal' => number_format($total_pagos, 2, '.', ''),
+                    'Total' => number_format($total_pagos, 2, '.', '')
                 )
             );
             //dd($objetosArray);
@@ -1086,11 +1093,20 @@ class FichaPagosController extends Controller
                 //dd($result);
                 $xmlArray = $this->xmlstr_to_array($result->XML);
                 //dd($xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"]);
-                $pago->uuid = $xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"];
-                $pago->cbb = $result->CBB;
-                $pago->xml = $result->XML;
-                $pago->fecha_solicitud_factura = $fecha_solicitud_factura_tabla;
-                $pago->save();
+                $pagos1 = Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
+                //dd($pagos->toArray());
+                $folio = ++$plantel->folio_facturados;
+                $plantel->save();
+                foreach ($pagos1 as $pago1) {
+                    $pago1->uuid = $xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"];
+                    $pago1->cbb = $result->CBB;
+                    $pago1->xml = $result->XML;
+                    $pago1->fecha_solicitud_factura = $fecha_solicitud_factura_tabla;
+                    $pago1->serie_factura = $plantel->serie_factura;
+                    $pago1->folio_facturados = $folio;
+
+                    $pago1->save();
+                }
             }
         } catch (\Exception $e) {
             echo $e->getMessage();

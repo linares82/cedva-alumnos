@@ -25,7 +25,8 @@ class Plantel extends Model
         'meta_total', 'st_plantel_id', 'consecutivo', 'estado_id', 'csc_cotizacion', 'clausulas_cotizacion',
         'director_id', 'responsable_id', 'enlace_lugar', 'enlace', 'cve_estatal', 'cve_centro', 'img_firma',
         'cve_vinculacion', 'csc_vinculacion', 'denominacion', 'nombre_corto', 'cuenta_contable',
-        'cve_multipagos'
+        'cve_multipagos', 'fcuenta', 'fusuario', 'fpassword', 'serie_factura', 'folio_facturados',
+        'cuenta_p_id', 'regimen_fiscal', 'fcuenta', 'fusuario', 'password', 'serie_factura', 'folio_facturados'
     ];
 
     protected $dates = ['deleted_at'];
