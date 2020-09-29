@@ -42,8 +42,8 @@
         </div>
 
     </div>
-    <div class="col-md-12">
-        <span class="label label-info label-white middle">Le recordamos que solo puede facturar pagos cuya fecha limite sea del mismo mes en curso y que despues de efectuar su pago, cuenta con 72 horas como limite para emitir su factura.</span>
+    <div class="col-md-12 alert alert-block alert-success">
+        Les recordamos que en caso de requerir factura esto lo puede hacer durante las 72 hrs siguientes después de realizar su pago. Cualquier duda estamos a sus ordenes en el correo facturacion@grupocedva.com
     </div>
 
     <div class="col-md-12">
