@@ -26,7 +26,7 @@ class Plantel extends Model
         'director_id', 'responsable_id', 'enlace_lugar', 'enlace', 'cve_estatal', 'cve_centro', 'img_firma',
         'cve_vinculacion', 'csc_vinculacion', 'denominacion', 'nombre_corto', 'cuenta_contable',
         'cve_multipagos', 'fcuenta', 'fusuario', 'fpassword', 'serie_factura', 'folio_facturados',
-        'cuenta_p_id', 'regimen_fiscal', 'fcuenta', 'fusuario', 'password', 'serie_factura', 'folio_facturados'
+        'cuenta_p_id', 'regimen_fiscal', 'fcuenta', 'fusuario', 'password', 'serie_factura', 'folio_facturados', 'matriz_id'
     ];
 
     protected $dates = ['deleted_at'];
@@ -181,4 +181,9 @@ class Plantel extends Model
     {
         return $this->belongsToMany('App\FormaPago', 'forma_pago_plantel', 'plantel_id', 'forma_pago_id');
     } // end
+
+    public function matriz()
+    {
+        return $this->belongsTo('App\Plantel', 'matriz_id', 'id');
+    }
 }

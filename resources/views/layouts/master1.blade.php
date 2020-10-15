@@ -216,7 +216,24 @@
                                 <b class="arrow"></b>
                             </li>
 
+                            <li class="hover">
+                                <a href="{{ route('inscripcions.historialAcademico') }}">
+                                    <i class="menu-icon glyphicon glyphicon-book"></i>
+                                    <span class="menu-text">H. Calificaciones</span>
+                                </a>
 
+                                <b class="arrow"></b>
+                            </li>
+
+                            <!--
+                            <li class="hover">
+                                <a href="{{ route('inscripcions.lista') }}">
+                                    <i class="menu-icon glyphicon glyphicon-check"></i>
+                                    <span class="menu-text">Asistencias</span>
+                                </a>
+
+                                <b class="arrow"></b>
+                            </li>-->
 
                         </ul><!-- /.nav-list -->
                     </div>

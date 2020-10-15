@@ -126,7 +126,7 @@ class FichaPagosController extends Controller
             ->where('adeudos.cliente_id', $cliente)
             ->where('adeudos.pagado_bnd', 0)
             ->orderBy('adeudos.id')
-            ->take(3)
+            ->take(5)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->join('grados as g', 'g.id', '=', 'cc.grado_id')
@@ -946,6 +946,7 @@ class FichaPagosController extends Controller
         $plantel = $adeudoPagoOnLine->cliente->plantel;
         $pago = $adeudoPagoOnLine->pago;
         $caja = $adeudoPagoOnLine->caja;
+        $fecha_anio = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->year;
         //Parametros para el webservice
         $url = Param::where('llave', 'webServiceFacturacion')->first();
         //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
@@ -973,12 +974,13 @@ class FichaPagosController extends Controller
             $fecha_solicitud_factura_service = date('Y-m-d\TH:i:s');
 
             $pagos = Pago::where('caja_id', $adeudo->caja_id)->get();
+
             //dd($pagos->toArray());
             $total_pagos = 0;
             foreach ($pagos as $pago) {
                 $total_pagos = $total_pagos + $pago->monto;
             }
-
+            //dd($cliente->plantel->matriz);
             $objetosArray = array(
                 'credenciales' => array(
                     'Cuenta' => $plantel->fcuenta,
@@ -988,15 +990,15 @@ class FichaPagosController extends Controller
                 'cfdi' => array(
                     'Addenda' => array(
                         'DomicilioEmisor' => array(
-                            'Calle' => $cliente->plantel->calle,
-                            'CodigoPostal' => $cliente->plantel->cp,
-                            'Colonia' => $cliente->plantel->colonia,
-                            'Estado' => $cliente->festado,
+                            'Calle' => $plantel->matriz->calle,
+                            'CodigoPostal' => $plantel->matriz->cp,
+                            'Colonia' => $plantel->matriz->colonia,
+                            'Estado' => $plantel->matriz->estado,
                             //'Localidad' => $cliente->flocalidad,
-                            'Municipio' => $cliente->plantel->municipio,
-                            'NombreCliente' => $cliente->plantel->nombre_corto,
-                            'NumeroExterior' => $cliente->plantel->no_ext,
-                            'NumeroInterior' => $cliente->plantel->no_int,
+                            'Municipio' => $plantel->matriz->municipio,
+                            'NombreCliente' => $plantel->matriz->nombre_corto,
+                            'NumeroExterior' => $plantel->matriz->no_ext,
+                            'NumeroInterior' => $plantel->matriz->no_int,
                             'Pais' => 'Mexico',
                             //'Referencia'=>$cliente->,
                             //'Telefono'=>
@@ -1016,15 +1018,15 @@ class FichaPagosController extends Controller
                             //'Telefono'=>
                         ),
                         'DomicilioSucursal' => array(
-                            'Calle' => $cliente->plantel->calle,
-                            'CodigoPostal' => $cliente->plantel->cp,
-                            'Colonia' => $cliente->plantel->colonia,
-                            'Estado' => $cliente->festado,
+                            'Calle' => $plantel->calle,
+                            'CodigoPostal' => $plantel->cp,
+                            'Colonia' => $plantel->colonia,
+                            'Estado' => $plantel->estado,
                             //'Localidad' => $cliente->flocalidad,
-                            'Municipio' => $cliente->plantel->municipio,
-                            'NombreCliente' => $cliente->plantel->nombre_corto,
-                            'NumeroExterior' => $cliente->plantel->no_ext,
-                            'NumeroInterior' => $cliente->plantel->no_int,
+                            'Municipio' => $plantel->municipio,
+                            'NombreCliente' => $plantel->nombre_corto,
+                            'NumeroExterior' => $plantel->no_ext,
+                            'NumeroInterior' => $plantel->no_int,
                             'Pais' => 'Mexico',
                             //'Referencia'=>$cliente->,
                             //'Telefono'=>
@@ -1054,7 +1056,7 @@ class FichaPagosController extends Controller
                         'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
                         'ClaveUnidad' => 'E48',
                         'Unidad' => 'Servicio', //Definir valor default
-                        'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura,
+                        'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio,
                         'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
                             'Base' => number_format($total_pagos, 2, '.', ''),
                             //'Importe' => '0.00',
@@ -1175,9 +1177,11 @@ class FichaPagosController extends Controller
         $datos = $request->all();
         //Parametros para el webservice
         $url = Param::where('llave', 'webServiceFacturacion')->first();
-        $cuenta = Param::where('llave', 'cuentaFacturacion')->first();
-        $password = Param::where('llave', 'passwordFacturacion')->first();
-        $usuario = Param::where('llave', 'usuarioFacturacion')->first();
+        //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
+        //$password = Param::where('llave', 'passwordFacturacion')->first();
+        //$usuario = Param::where('llave', 'usuarioFacturacion')->first();
+        $pago = Pago::where('uuid', $datos['uuid'])->first();
+        $plantel = $pago->caja->plantel;
 
         try {
             $opts = array(
@@ -1199,16 +1203,17 @@ class FichaPagosController extends Controller
 
             $objetosArray = array(
                 'credenciales' => array(
-                    'Cuenta' => $cuenta->valor,
-                    'Password' => $password->valor,
-                    'Usuario' => $usuario->valor
+                    'Cuenta' => $plantel->fcuenta,
+                    'Password' => $plantel->fpassword,
+                    'Usuario' => $plantel->fusuario
                 ),
                 'uuid' => $datos['uuid'],
             );
             //dd($objetosArray);
             $result = $client->ObtenerXMLPorUUID($objetosArray)->ObtenerXMLPorUUIDResult;
-            //dd($result->XML);
-            if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+            //dd($result);
+            if ($result->OperacionExitosa <> true) {
+                dd($result->ErrorGeneral);
                 Session::flash('error', $result->ErrorGeneral);
                 return back();
             } elseif ($result->OperacionExitosa == true) {
@@ -1227,9 +1232,11 @@ class FichaPagosController extends Controller
         $datos = $request->all();
         //Parametros para el webservice
         $url = Param::where('llave', 'webServiceFacturacion')->first();
-        $cuenta = Param::where('llave', 'cuentaFacturacion')->first();
-        $password = Param::where('llave', 'passwordFacturacion')->first();
-        $usuario = Param::where('llave', 'usuarioFacturacion')->first();
+        //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
+        //$password = Param::where('llave', 'passwordFacturacion')->first();
+        //$usuario = Param::where('llave', 'usuarioFacturacion')->first();
+        $pago = Pago::where('uuid', $datos['uuid'])->first();
+        $plantel = $pago->caja->plantel;
 
         try {
             $opts = array(
@@ -1251,9 +1258,9 @@ class FichaPagosController extends Controller
 
             $objetosArray = array(
                 'credenciales' => array(
-                    'Cuenta' => $cuenta->valor,
-                    'Password' => $password->valor,
-                    'Usuario' => $usuario->valor
+                    'Cuenta' => $plantel->fcuenta,
+                    'Password' => $plantel->fpassword,
+                    'Usuario' => $plantel->fusuario
                 ),
                 'uuid' => $datos['uuid'],
                 'nombrePlantilla' => ''
@@ -1261,7 +1268,8 @@ class FichaPagosController extends Controller
             //dd($objetosArray);
             $result = $client->ObtenerPdf($objetosArray)->ObtenerPDFResult;
 
-            if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+            if ($result->OperacionExitosa <> true) {
+                dd($result->ErrorGeneral);
                 Session::flash('error', $result->ErrorGeneral);
                 return back();
             } elseif ($result->OperacionExitosa == true) {

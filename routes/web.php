@@ -145,3 +145,39 @@ Route::get(
         'uses' => 'FichaPagosController@getFacturaPdfByUuid'
     )
 )->middleware('auth');
+Route::get(
+    'inscripcions/historialAcademico',
+    array(
+        'as' => 'inscripcions.historialAcademico',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'InscripcionsController@historialAcademico'
+    )
+)->middleware('auth');
+
+Route::get(
+    'inscripcions/lista',
+    array(
+        'as' => 'inscripcions.lista',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'InscripcionsController@lista'
+    )
+)->middleware('auth');
+
+Route::get(
+    'inscripcions/listar',
+    array(
+        'as' => 'inscripcions.listar',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'InscripcionsController@listar'
+    )
+)->middleware('auth');
+
+
+Route::get(
+    'inscripcions/listar',
+    array(
+        'as' => 'inscripcions.listar',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'InscripcionsController@listar'
+    )
+)->middleware('auth');

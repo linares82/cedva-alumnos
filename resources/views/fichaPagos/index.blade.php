@@ -85,6 +85,7 @@
 
                             //dd($adeudos);
                             $i=0;
+                            $bandera_pagar_en_linea=0;
                             @endphp
 
                             @foreach($adeudos as $adeudo)
@@ -138,6 +139,7 @@
                                         $existe_seccion_valida=1;
                                     }
                                     //dd($existe_seccion_valida);
+
                                     @endphp
 
                                     @if($adeudo->pagado_bnd==1)
@@ -147,17 +149,24 @@
                                             $adeudo->fecha_pago>date('Y-m-d') and
                                             $existe_seccion_valida==1)
                                     <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }}</span>
-
+                                    @if($bandera_pagar_en_linea==0)
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
-
+                                    @endif
+                                    @php
+                                        //$bandera_pagar_en_linea=1;
+                                    @endphp
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @elseif($adeudo->pagado_bnd==0 and
                                             isset(optional($adeudo->pagoOnLine)->total) and
                                             $existe_seccion_valida==1)
                                     <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO-{{ $respuesta_msj }}</span>
 
+                                    @if($bandera_pagar_en_linea==0)
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
-
+                                    @endif
+                                    @php
+                                        //$bandera_pagar_en_linea=1;
+                                    @endphp
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @endif
                                     <div id='loading1' style='display: none'><img src="{{ asset('img/ajax-loader.gif') }}" title="Enviando" /></div>
