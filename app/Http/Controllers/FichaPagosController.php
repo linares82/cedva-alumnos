@@ -981,104 +981,239 @@ class FichaPagosController extends Controller
                 $total_pagos = $total_pagos + $pago->monto;
             }
             //dd($cliente->plantel->matriz);
-            $objetosArray = array(
-                'credenciales' => array(
-                    'Cuenta' => $plantel->fcuenta,
-                    'Password' => $plantel->fpassword,
-                    'Usuario' => $plantel->fusuario
-                ),
-                'cfdi' => array(
-                    'Addenda' => array(
-                        'DomicilioEmisor' => array(
-                            'Calle' => $plantel->matriz->calle,
-                            'CodigoPostal' => $plantel->matriz->cp,
-                            'Colonia' => $plantel->matriz->colonia,
-                            'Estado' => $plantel->matriz->estado,
-                            //'Localidad' => $cliente->flocalidad,
-                            'Municipio' => $plantel->matriz->municipio,
-                            'NombreCliente' => $plantel->matriz->nombre_corto,
-                            'NumeroExterior' => $plantel->matriz->no_ext,
-                            'NumeroInterior' => $plantel->matriz->no_int,
-                            'Pais' => 'Mexico',
-                            //'Referencia'=>$cliente->,
-                            //'Telefono'=>
-                        ),
-                        'DomicilioReceptor' => array(
-                            'Calle' => $cliente->fcalle,
-                            'CodigoPostal' => $cliente->fcp,
-                            'Colonia' => $cliente->fcolonia,
-                            'Estado' => $cliente->festado,
-                            'Localidad' => $cliente->flocalidad,
-                            'Municipio' => $cliente->fmunicipio,
-                            'NombreCliente' => $cliente->fno_interior,
-                            'NumeroExterior' => $cliente->fno_exterior,
-                            'NumeroInterior' => $cliente->fno_interior,
-                            'Pais' => $cliente->fpais,
-                            //'Referencia'=>$cliente->,
-                            //'Telefono'=>
-                        ),
-                        'DomicilioSucursal' => array(
-                            'Calle' => $plantel->calle,
-                            'CodigoPostal' => $plantel->cp,
-                            'Colonia' => $plantel->colonia,
-                            'Estado' => $plantel->estado,
-                            //'Localidad' => $cliente->flocalidad,
-                            'Municipio' => $plantel->municipio,
-                            'NombreCliente' => $plantel->nombre_corto,
-                            'NumeroExterior' => $plantel->no_ext,
-                            'NumeroInterior' => $plantel->no_int,
-                            'Pais' => 'Mexico',
-                            //'Referencia'=>$cliente->,
-                            //'Telefono'=>
-                        ),
+            $objetosArray = array();
+            if ($adeudo->combinacionCliente->grado->clave_servicio == "86121600") {
+                $objetosArray = array(
+                    'credenciales' => array(
+                        'Cuenta' => $plantel->fcuenta,
+                        'Password' => $plantel->fpassword,
+                        'Usuario' => $plantel->fusuario
                     ),
-                    'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
-                    //Plantel emisor de factura
-                    'Emisor' => array(
-                        'Nombre' => $cliente->plantel->nombre_corto,
-                        'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
-                    ),
-                    //Cliente
-                    'Receptor' => array(
-                        'Nombre' => $cliente->frazon,
-                        'Rfc' => $cliente->frfc, //'TEST010203001',
-                        'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
-                    ),
-                    //'CondicionesDePago' => 'CONDICIONES', //opcional
-                    'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
-                    'Fecha' => $fecha_solicitud_factura_service,
-                    'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
-                    'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
-                    'Moneda' => 'MXN', //Default
-                    'Referencia' => $pago->csc_simplificado,  //Definir valor
-                    'Conceptos' => array('ConceptoR' => array(
-                        'Cantidad' => '1',
-                        'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
-                        'ClaveUnidad' => 'E48',
-                        'Unidad' => 'Servicio', //Definir valor default
-                        'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio,
-                        'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
-                            'Base' => number_format($total_pagos, 2, '.', ''),
-                            //'Importe' => '0.00',
-                            'Impuesto' => '002',
-                            //'TasaOCuota' => '0.000000',
-                            'TipoFactor' => 'Exento'
-                        ),),),
-                        'InstEducativas' => array(
-                            'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
-                            'CURP' => $cliente->curp,
-                            'NivelEducativo' => $nivelEducativoSat->name,
-                            'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
-                            'RfcPago' => $cliente->frfc
+                    'cfdi' => array(
+                        'Addenda' => array(
+                            /*'DomicilioEmisor' => array(
+                                'Calle' => $plantel->matriz->calle,
+                                'CodigoPostal' => $plantel->matriz->cp,
+                                'Colonia' => $plantel->matriz->colonia,
+                                'Estado' => $plantel->matriz->estado,
+                                //'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $plantel->matriz->municipio,
+                                'NombreCliente' => $plantel->matriz->nombre_corto,
+                                'NumeroExterior' => $plantel->matriz->no_ext,
+                                'NumeroInterior' => $plantel->matriz->no_int,
+                                'Pais' => 'Mexico',
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            ),*/
+                            'DomicilioEmisor' => array(
+                                'Calle' => $plantel->calle,
+                                'CodigoPostal' => $plantel->cp,
+                                'Colonia' => $plantel->colonia,
+                                'Estado' => $plantel->estado,
+                                //'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $plantel->municipio,
+                                'NombreCliente' => $plantel->nombre_corto,
+                                'NumeroExterior' => $plantel->no_ext,
+                                'NumeroInterior' => $plantel->no_int,
+                                'Pais' => 'Mexico',
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            ),
+                            'DomicilioReceptor' => array(
+                                'Calle' => $cliente->fcalle,
+                                'CodigoPostal' => $cliente->fcp,
+                                'Colonia' => $cliente->fcolonia,
+                                'Estado' => $cliente->festado,
+                                'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $cliente->fmunicipio,
+                                'NombreCliente' => $cliente->fno_interior,
+                                'NumeroExterior' => $cliente->fno_exterior,
+                                'NumeroInterior' => $cliente->fno_interior,
+                                'Pais' => $cliente->fpais,
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            )/*,
+                            'DomicilioSucursal' => array(
+                                'Calle' => $plantel->calle,
+                                'CodigoPostal' => $plantel->cp,
+                                'Colonia' => $plantel->colonia,
+                                'Estado' => $plantel->estado,
+                                //'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $plantel->municipio,
+                                'NombreCliente' => $plantel->nombre_corto,
+                                'NumeroExterior' => $plantel->no_ext,
+                                'NumeroInterior' => $plantel->no_int,
+                                'Pais' => 'Mexico',
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            ),*/
                         ),
-                        //'NoIdentificacion' => '00003', //Opcional
-                        'Importe' => number_format($total_pagos, 2, '.', ''),
-                        'ValorUnitario' => number_format($total_pagos, 2, '.', '')
-                    ),),
-                    'SubTotal' => number_format($total_pagos, 2, '.', ''),
-                    'Total' => number_format($total_pagos, 2, '.', '')
-                )
-            );
+                        'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
+                        //Plantel emisor de factura
+                        'Emisor' => array(
+                            'Nombre' => $cliente->plantel->nombre_corto,
+                            'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
+                        ),
+                        //Cliente
+                        'Receptor' => array(
+                            'Nombre' => $cliente->frazon,
+                            'Rfc' => $cliente->frfc, //'TEST010203001',
+                            'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                        ),
+                        //'CondicionesDePago' => 'CONDICIONES', //opcional
+                        'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
+                        'Fecha' => $fecha_solicitud_factura_service,
+                        'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
+                        'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
+                        'Moneda' => 'MXN', //Default
+                        'Referencia' => $pago->csc_simplificado,  //Definir valor
+                        'Conceptos' => array('ConceptoR' => array(
+                            'Cantidad' => '1',
+                            'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
+                            'ClaveUnidad' => 'E48',
+                            'Unidad' => 'Servicio', //Definir valor default
+                            'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio,
+                            'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
+                                'Base' => number_format($total_pagos, 2, '.', ''),
+                                //'Importe' => '0.00',
+                                'Impuesto' => '002',
+                                //'TasaOCuota' => '0.000000',
+                                'TipoFactor' => 'Exento'
+                            ),),),
+                            'InstEducativas' => array(
+                                'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
+                                'CURP' => $cliente->curp,
+                                'NivelEducativo' => $nivelEducativoSat->name,
+                                'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
+                                'RfcPago' => $cliente->frfc
+                            ),
+                            //'NoIdentificacion' => '00003', //Opcional
+                            'Importe' => number_format($total_pagos, 2, '.', ''),
+                            'ValorUnitario' => number_format($total_pagos, 2, '.', '')
+                        ),),
+                        'SubTotal' => number_format($total_pagos, 2, '.', ''),
+                        'Total' => number_format($total_pagos, 2, '.', '')
+                    )
+                );
+            } elseif ($adeudo->combinacionCliente->grado->clave_servicio == "86121700") {
+                $objetosArray = array(
+                    'credenciales' => array(
+                        'Cuenta' => $plantel->fcuenta,
+                        'Password' => $plantel->fpassword,
+                        'Usuario' => $plantel->fusuario
+                    ),
+                    'cfdi' => array(
+                        'Addenda' => array(
+                            /*'DomicilioEmisor' => array(
+                                'Calle' => $plantel->matriz->calle,
+                                'CodigoPostal' => $plantel->matriz->cp,
+                                'Colonia' => $plantel->matriz->colonia,
+                                'Estado' => $plantel->matriz->estado,
+                                //'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $plantel->matriz->municipio,
+                                'NombreCliente' => $plantel->matriz->nombre_corto,
+                                'NumeroExterior' => $plantel->matriz->no_ext,
+                                'NumeroInterior' => $plantel->matriz->no_int,
+                                'Pais' => 'Mexico',
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            ),*/
+                            'DomicilioEmisor' => array(
+                                'Calle' => $plantel->calle,
+                                'CodigoPostal' => $plantel->cp,
+                                'Colonia' => $plantel->colonia,
+                                'Estado' => $plantel->estado,
+                                //'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $plantel->municipio,
+                                'NombreCliente' => $plantel->nombre_corto,
+                                'NumeroExterior' => $plantel->no_ext,
+                                'NumeroInterior' => $plantel->no_int,
+                                'Pais' => 'Mexico',
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            ),
+                            'DomicilioReceptor' => array(
+                                'Calle' => $cliente->fcalle,
+                                'CodigoPostal' => $cliente->fcp,
+                                'Colonia' => $cliente->fcolonia,
+                                'Estado' => $cliente->festado,
+                                'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $cliente->fmunicipio,
+                                'NombreCliente' => $cliente->fno_interior,
+                                'NumeroExterior' => $cliente->fno_exterior,
+                                'NumeroInterior' => $cliente->fno_interior,
+                                'Pais' => $cliente->fpais,
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            )/*,
+                            'DomicilioSucursal' => array(
+                                'Calle' => $plantel->calle,
+                                'CodigoPostal' => $plantel->cp,
+                                'Colonia' => $plantel->colonia,
+                                'Estado' => $plantel->estado,
+                                //'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $plantel->municipio,
+                                'NombreCliente' => $plantel->nombre_corto,
+                                'NumeroExterior' => $plantel->no_ext,
+                                'NumeroInterior' => $plantel->no_int,
+                                'Pais' => 'Mexico',
+                                //'Referencia'=>$cliente->,
+                                //'Telefono'=>
+                            ),*/
+                        ),
+                        'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
+                        //Plantel emisor de factura
+                        'Emisor' => array(
+                            'Nombre' => $cliente->plantel->nombre_corto,
+                            'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
+                        ),
+                        //Cliente
+                        'Receptor' => array(
+                            'Nombre' => $cliente->frazon,
+                            'Rfc' => $cliente->frfc, //'TEST010203001',
+                            'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                        ),
+                        //'CondicionesDePago' => 'CONDICIONES', //opcional
+                        'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
+                        'Fecha' => $fecha_solicitud_factura_service,
+                        'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
+                        'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
+                        'Moneda' => 'MXN', //Default
+                        'Referencia' => $pago->csc_simplificado,  //Definir valor
+                        'Conceptos' => array('ConceptoR' => array(
+                            'Cantidad' => '1',
+                            'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
+                            'ClaveUnidad' => 'E48',
+                            'Unidad' => 'Servicio', //Definir valor default
+                            'Descripcion' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno . PHP_EOL .
+                                $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio . PHP_EOL .
+                                $adeudo->combinacionCliente->grado->name . PHP_EOL .
+                                "CURP: " . $cliente->curp . PHP_EOL .
+                                "RVOE: " . $adeudo->combinacionCliente->grado->rvoe,
+                            'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
+                                'Base' => number_format($total_pagos, 2, '.', ''),
+                                //'Importe' => '0.00',
+                                'Impuesto' => '002',
+                                //'TasaOCuota' => '0.000000',
+                                'TipoFactor' => 'Exento'
+                            ),),),
+                            /*'InstEducativas' => array(
+                                'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
+                                'CURP' => $cliente->curp,
+                                'NivelEducativo' => $nivelEducativoSat->name,
+                                'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
+                                'RfcPago' => $cliente->frfc
+                            ),*/
+                            //'NoIdentificacion' => '00003', //Opcional
+                            'Importe' => number_format($total_pagos, 2, '.', ''),
+                            'ValorUnitario' => number_format($total_pagos, 2, '.', '')
+                        ),),
+                        'SubTotal' => number_format($total_pagos, 2, '.', ''),
+                        'Total' => number_format($total_pagos, 2, '.', '')
+                    )
+                );
+            }
+
             //dd($objetosArray);
             $result = $client->GenerarCFDI($objetosArray)->GenerarCFDIResult;
             //dd($result);
