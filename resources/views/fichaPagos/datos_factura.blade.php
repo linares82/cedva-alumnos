@@ -61,6 +61,13 @@
                 <span class="help-block">{{ $errors->first("frfc") }}</span>
                 @endif
             </div>
+            <div class="form-group col-md-4 @if($errors->has('fmail')) has-error @endif"  style="clear:left;">
+                <label for="fmail-field">*Correo Electronico</label>
+                {!! Form::text("fmail", null, array("class" => "form-control input-sm", "id" => "fmail-field")) !!}
+                @if($errors->has("fmail"))
+                <span class="help-block">{{ $errors->first("fmail") }}</span>
+                @endif
+            </div>
             <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif" style="clear:left;">
                 <label for="fcalle-field">*Calle</label>
                 {!! Form::text("fcalle", null, array("class" => "form-control input-sm", "id" => "fcalle-field")) !!}
@@ -153,6 +160,7 @@ $(document).ready(function(){
         let estado=$("#festado-field").val();
         let pais=$("#fpais-field").val();
         let cp=$("#fcp-field").val();
+        let mail=$("#fmail-field").val();
         //console.log(forma_pago);
 
         //console.log(pagador);
@@ -161,6 +169,7 @@ $(document).ready(function(){
                     "<strong>Tipo de Persona:</strong> "+tipo_persona+"<br>"+
                     "<strong>Nombre o Razón Social:</strong> "+razon+"<br>"+
                     "<strong>RFC:</strong> "+rfc+"<br>"+
+                    "Correo Electrónico: "+mail+"<br>"+
                     "<strong>Calle:</strong> "+calle+"<br>"+
                     "No. Interior: "+no_interior+"<br>"+
                     "No. Exterior: "+no_exterior+"<br>"+

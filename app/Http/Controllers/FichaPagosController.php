@@ -358,7 +358,7 @@ class FichaPagosController extends Controller
                                     //echo $caja_ln['recargo'];
                                 } else {
                                     if ($adeudo->bnd_eximir_descuento_regla == 0) {
-                                        $regla_descuento = $caja_ln['subtotal'] * $regla->porcentaje * -1;
+                                        $regla_descuento = $caja_ln['total'] * $regla->porcentaje * -1;
                                         $caja_ln['descuento'] = $caja_ln['descuento'] + $regla_descuento;
                                         $caja_ln['total'] = $caja_ln['total'] - $caja_ln['descuento'];
 
@@ -935,6 +935,7 @@ class FichaPagosController extends Controller
             'fpais' => 'required',
             'fcp' => 'required',
             'curp' => 'required',
+            'fmail'=>'required',
         ];
         $customMessages = [
             'required' => 'El campo es obligatorio, capturar un valor.'
@@ -984,7 +985,19 @@ class FichaPagosController extends Controller
                 $total_pagos = $total_pagos + $pago->monto;
             }
             //dd($cliente->plantel->matriz);
+            $grado=$adeudo->combinacionCliente->grado;
+            if(
+                is_null($grado->nivel_educativo_id) or $grado->nivel_educativo_id="" or
+                is_null($grado->clave_servicio) or $grado->clave_servicio="" or
+                is_null($grado->seccion) or $grado->seccion="" or
+                is_null($grado->fec_rvoe) or $grado->fec_rvoe="" or
+                is_null($grado->rvoe) or $grado->rvoe=""
+            ){
+                dd("Uno o más datos no estan definidos en el grado con id:".$grado->id);
+            }
+
             $objetosArray = array();
+
             if ($adeudo->combinacionCliente->grado->clave_servicio == "86121600") {
                 $objetosArray = array(
                     'credenciales' => array(
@@ -1246,6 +1259,25 @@ class FichaPagosController extends Controller
                     $pago1->folio_facturados = $folio;
 
                     $pago1->save();
+
+                    //Envio de correo por parte del proveedor
+
+                    $objetoArray = array(
+                        'credenciales' => array(
+                            'Cuenta' => $plantel->fcuenta,
+                            'Password' => $plantel->fpassword,
+                            'Usuario' => $plantel->fusuario
+                        ),
+                        'uuid' => $pago1->uuid,
+                        'email' => $cliente->fmail,
+                        'titulo' => "Factura "+$plantel->nombre_corto,
+                        'mensaje' => "",
+                    );
+                    $result = $client->EnviarCFDI($objetoArray)->EnviarCFDIResult;
+                    if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+                        Session::flash('error', $result->ErrorGeneral);
+                        return back();
+                    }
                 }
             }
         } catch (\Exception $e) {
@@ -1448,6 +1480,7 @@ class FichaPagosController extends Controller
             'fpais' => 'required',
             'fcp' => 'required',
             'curp' => 'required',
+            'fmail'=> 'required',
         ];
         $customMessages = [
             'required' => 'El campo es obligatorio, capturar un valor.'
