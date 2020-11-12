@@ -987,11 +987,11 @@ class FichaPagosController extends Controller
             //dd($cliente->plantel->matriz);
             $grado=$adeudo->combinacionCliente->grado;
             if(
-                is_null($grado->nivel_educativo_id) or $grado->nivel_educativo_id="" or
-                is_null($grado->clave_servicio) or $grado->clave_servicio="" or
-                is_null($grado->seccion) or $grado->seccion="" or
-                is_null($grado->fec_rvoe) or $grado->fec_rvoe="" or
-                is_null($grado->rvoe) or $grado->rvoe=""
+                is_null($grado->nivel_educativo_sat_id) or $grado->nivel_educativo_sat_id=="" or
+                is_null($grado->clave_servicio) or $grado->clave_servicio=="" or
+                is_null($grado->seccion) or $grado->seccion=="" or
+                is_null($grado->fec_rvoe) or $grado->fec_rvoe=="" or
+                is_null($grado->rvoe) or $grado->rvoe==""
             ){
                 dd("Uno o más datos no estan definidos en el grado con id:".$grado->id);
             }
@@ -1270,9 +1270,13 @@ class FichaPagosController extends Controller
                         ),
                         'uuid' => $pago1->uuid,
                         'email' => $cliente->fmail,
-                        'titulo' => "Factura "+$plantel->nombre_corto,
+                        'titulo' => "Factura ".$plantel->nombre_corto,
                         'mensaje' => "",
                     );
+                    Log::info('uuid:' . $pago1->uuid.
+                    ' email:' . $cliente->fmail.
+                    ' titulo:' . "Factura ".$plantel->nombre_corto.
+                    ' mensaje:' . "");
                     $result = $client->EnviarCFDI($objetoArray)->EnviarCFDIResult;
                     if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
                         Session::flash('error', $result->ErrorGeneral);
