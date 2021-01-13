@@ -81,9 +81,10 @@
                             $adeudos=\App\Adeudo::where('combinacion_cliente_id',$combinacion->id)
                             ->with('cajaConcepto')
                             ->with('pagoOnLine')
+                            ->orderBy('fecha_pago')
                             ->get();
 
-                            //dd($adeudos);
+                            //dd($adeudos->toArray());
                             $i=0;
                             $bandera_pagar_en_linea=0;
                             @endphp
@@ -153,7 +154,7 @@
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                     @endif
                                     @php
-                                        //$bandera_pagar_en_linea=1;
+                                        $bandera_pagar_en_linea=1;
                                     @endphp
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @elseif($adeudo->pagado_bnd==0 and
@@ -165,7 +166,7 @@
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                     @endif
                                     @php
-                                        //$bandera_pagar_en_linea=1;
+                                        $bandera_pagar_en_linea=1;
                                     @endphp
                                     <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
                                     @endif
@@ -175,7 +176,7 @@
                                 </td>
                                 <td>
 
-                                    @if($adeudo->pagado_bnd==1 )
+                                    @if($adeudo->pagado_bnd==1 and $adeudo->caja_id>0)
                                     {{ $adeudo->caja->consecutivo }}
                                     <a href="{{ route('fichaAdeudos.imprimir', array('pago'=>$adeudo->caja->pago->id)) }}" target="_blank" class="btn btn-info btn-xs">
                                         Imprimir

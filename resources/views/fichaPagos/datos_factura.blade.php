@@ -32,18 +32,26 @@
     {!! Form::model($cliente, array('route' => array('fichaAdeudos.confirmarFactura', $adeudo_pago_on_line),'method' => 'post','id'=>'frm')) !!}
             <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
                 <label for="curp-field">*CURP del Alumno</label>
+                <input type="hidden" name="_token" id="_token"  value="<?= csrf_token(); ?>"> 
                 {!! Form::text("curp", null, array("class" => "form-control input-sm", "id" => "curp-field", 'onkeyup'=>"javascript:this.value=this.value.toUpperCase();")) !!}
                 @if($errors->has("curp"))
                 <span class="help-block">{{ $errors->first("curp") }}</span>
                 @endif
             </div>
             <div class="row"></div>
-            <div class="col-md-12"><label>Datos Fiscales</label></div>
             <div class="form-group col-md-4 @if($errors->has('tipo_persona_id')) has-error @endif">
                 <label for="tipo_persona_id-field">*Tipo Persona</label>
                 {!! Form::select("tipo_persona_id", $tipoPersonas, null, array("class" => "form-control select_seguridad", "id" => "tipo_persona_id-field", 'style'=>'width:100%')) !!}
+                <div id='loading' style='display: none'><img src="{{ asset('images/ajax-loader.gif') }}" title="...Enviando" /></div> 
                 @if($errors->has("tipo_persona_id"))
                 <span class="help-block">{{ $errors->first("tipo_persona_id") }}</span>
+                @endif
+            </div>
+            <div class="form-group col-md-4 @if($errors->has('uso_factura_id')) has-error @endif">
+                <label for="uso_factura_id-field">*Uso Factura</label>
+                {!! Form::select("uso_factura_id", $usoFactura, null, array("class" => "form-control select_seguridad", "id" => "uso_factura_id-field", 'style'=>'width:100%')) !!}
+                @if($errors->has("uso_factura_id"))
+                <span class="help-block">{{ $errors->first("uso_factura_id") }}</span>
                 @endif
             </div>
 
@@ -54,21 +62,21 @@
                 <span class="help-block">{{ $errors->first("frazon") }}</span>
                 @endif
             </div>
-            <div class="form-group col-md-4 @if($errors->has('frfc')) has-error @endif">
+            <div class="form-group col-md-4 @if($errors->has('frfc')) has-error @endif" style="clear:left;">
                 <label for="frfc-field">*RFC</label>
                 {!! Form::text("frfc", null, array("class" => "form-control input-sm", "id" => "frfc-field", 'onkeyup'=>"javascript:this.value=this.value.toUpperCase();")) !!}
                 @if($errors->has("frfc"))
                 <span class="help-block">{{ $errors->first("frfc") }}</span>
                 @endif
             </div>
-            <div class="form-group col-md-4 @if($errors->has('fmail')) has-error @endif"  style="clear:left;">
+            <div class="form-group col-md-4 @if($errors->has('fmail')) has-error @endif"  >
                 <label for="fmail-field">*Correo Electronico</label>
                 {!! Form::text("fmail", null, array("class" => "form-control input-sm", "id" => "fmail-field")) !!}
                 @if($errors->has("fmail"))
                 <span class="help-block">{{ $errors->first("fmail") }}</span>
                 @endif
             </div>
-            <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif" style="clear:left;">
+            <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif" >
                 <label for="fcalle-field">*Calle</label>
                 {!! Form::text("fcalle", null, array("class" => "form-control input-sm", "id" => "fcalle-field")) !!}
                 @if($errors->has("fcalle"))
@@ -146,9 +154,43 @@
 @push('scripts')
 <script type="text/javascript">
 $(document).ready(function(){
+    
+    cmbUsoFactura();
+    
+    $("#tipo_persona_id-field").change(function() {
+        cmbUsoFactura();
+   });
+    
+    function cmbUsoFactura(){
+        $.ajax({
+                  url: '{{ route("fichaAdeudos.cmbUsoFactura") }}',
+                  type: 'GET',
+                  data: {
+                      'tipo_persona_id':$('#tipo_persona_id-field option:selected').val(),
+                      'uso_factura_id':$('#uso_factura_id-field option:selected').val(),
+                  },
+                  dataType: 'json',
+                  beforeSend : function(){$("#loading").show();},
+                  complete : function(){$("#loading").hide();},
+                  success: function(data){
+                      //$example.select2("destroy");
+                      $('#uso_factura_id-field').html('');
+                      
+                      //$('#especialidad_id-field').empty();
+                      $('#uso_factura_id-field').append($('<option></option>').text('Seleccionar').val('0'));
+                      
+                      $.each(data, function(i) {
+                          //alert(data[i].name);
+                          $('#uso_factura_id-field').append("<option "+data[i].selectec+" value=\""+data[i].id+"\">"+data[i].name+"<\/option>");
+                      });
+                  }
+              });
+    }
+    
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let tipo_persona=$("#tipo_persona_id-field option:selected").text();
+        let uso_factura=$("#uso_factura_id-field option:selected").text();
         let razon=$("#frazon-field").val();
         let rfc=$("#frfc-field").val();
         let calle=$("#fcalle-field").val();
@@ -167,6 +209,7 @@ $(document).ready(function(){
         bootbox.confirm({
             message: "<h3>Confirmar datos de facturacion:</h3> "+
                     "<strong>Tipo de Persona:</strong> "+tipo_persona+"<br>"+
+                    "<strong>Uso Factura:</strong> "+uso_factura+"<br>"+
                     "<strong>Nombre o Razón Social:</strong> "+razon+"<br>"+
                     "<strong>RFC:</strong> "+rfc+"<br>"+
                     "Correo Electrónico: "+mail+"<br>"+

@@ -194,7 +194,7 @@ $(document).ready(function(){
                             $("#mp_amount").val(data.datos.mp_amount);
                             $("#mp_customername").val(data.datos.mp_customername);
                             $("#mp_currency").val(data.datos.mp_currency);
-                            $("#mp_order").val(data.datos.mp_order);
+                            //$("#mp_order").val(data.datos.mp_order);
                             $("#mp_signature").val(data.datos.mp_signature);
                             $("#mp_urlsuccess").val(data.datos.mp_urlsuccess);
                             $("#mp_urlfailure").val(data.datos.mp_urlfailure);

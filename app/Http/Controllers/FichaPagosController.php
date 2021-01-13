@@ -23,6 +23,7 @@ use App\Seccion;
 use App\SuccessMultipago;
 use App\SerieFolioSimplificado;
 use App\TipoPersona;
+use App\UsoFactura;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use DB;
@@ -51,7 +52,10 @@ class FichaPagosController extends Controller
             ->get();
         //dd($combinaciones);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
-        $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)->get();
+        $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)
+        ->orderBy('fecha_limite')
+        ->get();
+        //dd($adeudo_pago_online->toArray());
         $secciones_validas = Seccion::all();
 
         return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas'));
@@ -111,7 +115,7 @@ class FichaPagosController extends Controller
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->join('grados as g', 'g.id', '=', 'cc.grado_id')
             //->whereIn('g.seccion', $seccionesValidas)
-            ->orderBy('adeudos.id');
+            ->orderBy('adeudos.fecha_pago');
         /*->whereNull('cc.deleted_at')
             ->with('caja')
             ->with('cliente')
@@ -126,7 +130,7 @@ class FichaPagosController extends Controller
             ->whereIn('cajaCon.cve_multipagos', $conceptosValidos)
             ->where('adeudos.cliente_id', $cliente)
             ->where('adeudos.pagado_bnd', 0)
-            ->orderBy('adeudos.id')
+            ->orderBy('adeudos.fecha_pago')
             ->take(5)
             ->whereNull('adeudos.deleted_at')
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
@@ -149,17 +153,50 @@ class FichaPagosController extends Controller
                     //dd($adeudo->caja->pago);
                     $input['matricula'] = $adeudo->cliente->matricula;
                     $input['adeudo_id'] = $adeudo->id;
-                    $input['pago_id'] = $adeudo->caja->pago->id;
-                    $input['caja_id'] = $adeudo->caja->id;
-                    $input['subtotal'] = $adeudo->caja->subtotal;
-                    $input['descuento'] = $adeudo->caja->descuento;
-                    $input['recargo'] = $adeudo->caja->recargo;
-                    $input['total'] = $adeudo->caja->total;
+                    if($adeudo->caja_id==0){
+                        $input['pago_id'] =0;
+                        $input['caja_id'] = 0;
+                        $input['subtotal'] = 0;
+                        $input['descuento'] = 0;
+                        $input['recargo'] = 0;
+                        $input['total'] = 0;
+                    }else{
+                        $input['pago_id'] = $adeudo->caja->pago->id;
+                        $input['caja_id'] = $adeudo->caja->id;
+                        $input['subtotal'] = $adeudo->caja->subtotal;
+                        $input['descuento'] = $adeudo->caja->descuento;
+                        $input['recargo'] = $adeudo->caja->recargo;
+                        $input['total'] = $adeudo->caja->total;
+                    }
                     $input['cliente_id'] = $adeudo->cliente_id;
                     $input['plantel_id'] = $adeudo->cliente->plantel_id;
                     $input['usu_alta_id'] = 1;
                     $input['usu_mod_id'] = 1;
                     AdeudoPagoOnLine::create($input);
+                }else{
+                    $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+                    //dd($hoy->toDateString());
+                    //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
+                    //if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
+                    //$input['matricula'] = $adeudo->cliente->matricula;
+                    //$input['cliente_id'] = $adeudo->cliente->id;
+                    //$input['adeudo_id'] = $adeudo->id;
+                    //dd($adeudo);
+                    $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                    $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
+                    $datos_calculados = $this->predefinido($adeudo->id);
+                    //dd($datos_calculados);
+                    $input['subtotal'] = $datos_calculados['subtotal'];
+                    $input['descuento'] = $datos_calculados['descuento'];
+                    $input['recargo'] = $datos_calculados['recargo'];
+                    $input['total'] = $datos_calculados['total'];
+                    $input['fecha_limite'] = $datos_calculados['fecha_limite'];
+                    //$input['cliente_id'] = $adeudo->cliente_id;
+                    //$input['usu_alta_id'] = 1;
+                    //$input['usu_mod_id'] = 1;
+                    $adeudo_pago_online->update($input);
+                    //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
+                    //}
                 }
             } else {
 
@@ -189,6 +226,8 @@ class FichaPagosController extends Controller
                     //$input['cliente_id'] = $adeudo->cliente->id;
                     //$input['adeudo_id'] = $adeudo->id;
                     //dd($adeudo);
+                    $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                    $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
                     $datos_calculados = $this->predefinido($adeudo->id);
                     //dd($datos_calculados);
                     $input['subtotal'] = $datos_calculados['subtotal'];
@@ -917,7 +956,8 @@ class FichaPagosController extends Controller
         $cliente = $adeudoPagoOnLine->cliente;
         $tipoPersonas = TipoPersona::pluck('name', 'id');
         $adeudo_pago_on_line = $adeudoPagoOnLine->id;
-        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line'));
+        $usoFactura=UsoFactura::select('id',DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name','id');
+        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line','usoFactura'));
     }
 
     public function confirmarFactura(Request $request, $id)
@@ -984,7 +1024,7 @@ class FichaPagosController extends Controller
             foreach ($pagos as $pago) {
                 $total_pagos = $total_pagos + $pago->monto;
             }
-            //dd($cliente->plantel->matriz);
+            //dd($cliente->usoFactura);
             $grado=$adeudo->combinacionCliente->grado;
             if(
                 is_null($grado->nivel_educativo_sat_id) or $grado->nivel_educativo_sat_id=="" or
@@ -1074,7 +1114,7 @@ class FichaPagosController extends Controller
                         'Receptor' => array(
                             'Nombre' => $cliente->frazon,
                             'Rfc' => $cliente->frfc, //'TEST010203001',
-                            'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                            'UsoCFDI' => $cliente->usoFactura->clave//$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
                         ),
                         //'CondicionesDePago' => 'CONDICIONES', //opcional
                         'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
@@ -1187,7 +1227,7 @@ class FichaPagosController extends Controller
                         'Receptor' => array(
                             'Nombre' => $cliente->frazon,
                             'Rfc' => $cliente->frfc, //'TEST010203001',
-                            'UsoCFDI' => $adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                            'UsoCFDI' => $cliente->usoFactura->clave//$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
                         ),
                         //'CondicionesDePago' => 'CONDICIONES', //opcional
                         'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
@@ -1465,8 +1505,9 @@ class FichaPagosController extends Controller
         $cliente = Cliente::where('matricula', Auth::user()->name)->first();
         //dd($cliente);
         $tipoPersonas = TipoPersona::pluck('name', 'id');
+        $usoFactura=UsoFactura::select('id',DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name','id');
         //$adeudo_pago_on_line = $adeudoPagoOnLine->id;
-        return view('fichaPagos.datos_fiscales', compact('cliente', 'tipoPersonas'));
+        return view('fichaPagos.datos_fiscales', compact('cliente', 'tipoPersonas', 'usoFactura'));
     }
 
     public function confirmarDatosFiscales(Request $request, $id)
@@ -1499,5 +1540,49 @@ class FichaPagosController extends Controller
         return redirect()->route('fichaAdeudos.index');
         //dd($cliente->toArray());
         //dd($adeudoPagoOnLine);
+    }
+    
+    public function cmbUsoFactura(Request $request)
+    {
+        if ($request->ajax()) {
+            //dd($request->all());
+            $tipoPersona = $request->get('tipo_persona_id');
+            $uso_factura=$request->get('uso_factura_id');
+
+            $final = array();
+            $r_aux = DB::table('uso_facturas as uf');
+            if($tipoPersona==1){
+                $r_aux->select('id',DB::raw('concat(clave,"-",descripcion) as name'))
+                ->where('uf.bnd_fisica', 1)
+                ->whereNull('deleted_at');    
+            }else{
+                $r_aux->select('id',DB::raw('concat(clave,"-",descripcion) as name'))
+                ->where('uf.bnd_moral', 1)
+                ->whereNull('deleted_at');
+            }
+
+            $r=$r_aux->get();
+            //dd($r);
+            if (isset($uso_factura) and $uso_factura != 0) {
+                foreach ($r as $r1) {
+                    if ($r1->id == $uso_factura) {
+                        array_push($final, array(
+                            'id' => $r1->id,
+                            'name' => $r1->name,
+                            'selectec' => 'Selected',
+                        ));
+                    } else {
+                        array_push($final, array(
+                            'id' => $r1->id,
+                            'name' => $r1->name,
+                            'selectec' => '',
+                        ));
+                    }
+                }
+                return $final;
+            } else {
+                return $r;
+            }
+        }
     }
 }

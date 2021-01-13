@@ -142,7 +142,7 @@
                 </div>
 
                 <div class="links">
-                    <p><a href="mailto:contacto@cedva-alumni.com.mx">contacto@cedva-alumni.com.mx</a>  ||  <a href="tel:01800 890 0855">01800 890 0855</a>  || Aviso de Privacidad  ||  CEDVA © 2020. All Rights Reserved.</p>
+                    <p> Aviso de Privacidad  ||  CEDVA © 2020. All Rights Reserved.</p>
                 </div>
             </div>
         </div>

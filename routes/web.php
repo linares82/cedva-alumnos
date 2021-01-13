@@ -120,6 +120,14 @@ Route::get(
         'uses' => 'FichaPagosController@datosFiscales'
     )
 )->middleware('auth');
+Route::get(
+    '/fichaAdeudos/cmbUsoFactura',
+    array(
+        'as' => 'fichaAdeudos.cmbUsoFactura',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@cmbUsoFactura'
+    )
+)->middleware('auth');
 
 Route::post(
     '/fichaAdeudos/confirmarDatosFiscales/{id}',
