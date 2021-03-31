@@ -127,7 +127,16 @@
             <tbody>
                 @foreach($materias_terminadas as $terminada)
                 <tr>
-                    <td>{{ $terminada->matricula }}</td><td>{{ $terminada->materia }}</td><td>{{ $terminada->clave }}</td><td>{{ $terminada->creditos }}</td><td>{{ $terminada->periodo }}</td><td>{{ $terminada->calificacion }}</td><td>{{ $terminada->tipo_examen }}</td>
+                    <td>{{ $terminada->matricula }}</td><td>{{ $terminada->materia }}</td><td>{{ $terminada->clave }}</td><td>{{ $terminada->creditos }}</td><td>{{ $terminada->periodo }}</td>
+                    <td>
+                        @if($terminada->calificacion>6)
+                        {{round($terminada->calificacion)}}
+                        @else
+                        {{ intdiv($terminada->calificacion,1) }}
+                        @endif
+
+                    </td>
+                    <td>{{ $terminada->tipo_examen }}</td>
                 </tr>
                 @endforeach
                 @if(isset($consulta_calificaciones) and count($consulta_calificaciones)>0)
@@ -138,7 +147,13 @@
                             <td>{{$registro->codigo}}</td>
                             <td>{{$registro->creditos}}</td>
                             <td>{{$registro->lectivo}}</td>
-                            <td>{{$registro->calificacion}}</td>
+                            <td>
+                                @if($registro->calificacion>6)
+                                {{round($registro->calificacion)}}
+                                @else
+                                {{ intdiv($registro->calificacion,1) }}
+                                @endif
+                            </td>
                             <td>{{$registro->tipo_examen}}</td>
                         </tr>
                     @endforeach

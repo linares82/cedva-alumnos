@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use App\Observers\PagoObserver;
+use Auth;
 use App\Pago;
 use App\User;
-use Auth;
+use App\PeticionMultipago;
+use App\Observers\PagoObserver;
+use Illuminate\Support\ServiceProvider;
+use App\Observers\PeticionMultipagoObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         Pago::observe(PagoObserver::class);
+        PeticionMultipago::observe(PeticionMultipagoObserver::class);
 
         //Permite descargar un archivo sin crearlo, solo con una cadena
         \Response::macro('attachment', function ($content) {

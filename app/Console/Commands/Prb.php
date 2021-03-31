@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Pago;
+use App\PeticionMultipago;
 use Illuminate\Console\Command;
 
 class Prb extends Command
@@ -38,8 +39,13 @@ class Prb extends Command
      */
     public function handle()
     {
+        /*
         $pago = Pago::find(2495);
         $pago->bnd_pagado = 1;
         $pago->save();
+        */
+        $peticion=PeticionMultipago::find(1);
+        $peticion->mp_amount=$peticion->mp_amount+1;
+        $peticion->save();
     }
 }

@@ -54,6 +54,7 @@ class FichaPagosController extends Controller
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)
         ->orderBy('fecha_limite')
+        ->whereNull('deleted_at')
         ->get();
         //dd($adeudo_pago_online->toArray());
         $secciones_validas = Seccion::all();
@@ -285,10 +286,11 @@ class FichaPagosController extends Controller
                 $mesFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->month;
                 $anioFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->year;
 
+
                 if (
                     (($beca->lectivo->inicio <= $adeudo->fecha_pago and $beca->lectivo->fin >= $adeudo->fecha_pago) or
-                        (($anioInicio = $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin = $anioAdeudo and $mesFin >= $mesAdeudo)) or
-                        (($anioInicio < $anioAdeudo or $mesInicio >= $mesAdeudo) and ($anioFin >= $anioAdeudo and $mesFin <= $mesAdeudo))) and
+                        (($anioInicio == $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin == $anioAdeudo and $mesFin >= $mesAdeudo)) or
+                        (($anioInicio < $anioAdeudo or $mesInicio >= $mesAdeudo) and ($anioFin >= $anioAdeudo and $mesFin >= $mesAdeudo))) and
                     $beca->aut_dueno == 4 and
                     is_null($beca->deleted_at)
                 ) {
@@ -298,7 +300,7 @@ class FichaPagosController extends Controller
             }
             //dd($caja_ln);
             $beca_autorizada = AutorizacionBeca::find($beca_a);
-            //                        dd($beca_autorizada->monto_mensualidad > 0);
+            //dd($beca_autorizada);
             if (
                 optional($beca_autorizada)->monto_mensualidad > 0 and
                 $adeudo->cajaConcepto->bnd_mensualidad == 1 and
@@ -380,8 +382,8 @@ class FichaPagosController extends Controller
                         //dd($dias >= $regla->dia_inicio and $dias <= $regla->dia_fin);
                         if ($dias >= $regla->dia_inicio and $dias <= $regla->dia_fin) {
                             //dd($fecha_adeudo);
-                            if ($regla->dia_fin > 60) {
-                                $caja_ln['fecha_limite'] = $fecha_adeudo->addDay(60)->toDateString();
+                            if ($regla->dia_fin > 90) {
+                                $caja_ln['fecha_limite'] = $fecha_adeudo->addDay(90)->toDateString();
                             } else {
                                 $caja_ln['fecha_limite'] = $fecha_adeudo->addDay($regla->dia_fin - 1)->toDateString();
                             }
@@ -794,7 +796,7 @@ class FichaPagosController extends Controller
                         $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
 
                         //dd($peticion->toArray());
-                        if ($datos['mp_response'] == '00') {
+                        if ($datos['mp_response'] == '00' or $datos['mp_response'] == '0' or $datos['mp_response'] == '000') {
                             //$pago = Pago::find($peticion->pago_id);
                             $pago->bnd_pagado = 1;
                             $pago->save();
@@ -1541,7 +1543,7 @@ class FichaPagosController extends Controller
         //dd($cliente->toArray());
         //dd($adeudoPagoOnLine);
     }
-    
+
     public function cmbUsoFactura(Request $request)
     {
         if ($request->ajax()) {
@@ -1554,7 +1556,7 @@ class FichaPagosController extends Controller
             if($tipoPersona==1){
                 $r_aux->select('id',DB::raw('concat(clave,"-",descripcion) as name'))
                 ->where('uf.bnd_fisica', 1)
-                ->whereNull('deleted_at');    
+                ->whereNull('deleted_at');
             }else{
                 $r_aux->select('id',DB::raw('concat(clave,"-",descripcion) as name'))
                 ->where('uf.bnd_moral', 1)

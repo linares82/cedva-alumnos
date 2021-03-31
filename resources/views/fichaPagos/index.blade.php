@@ -149,9 +149,13 @@
                                             isset(optional($adeudo->pagoOnLine)->total) and
                                             $adeudo->fecha_pago>date('Y-m-d') and
                                             $existe_seccion_valida==1)
-                                    <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }}</span>
+                                    <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }} </span>
                                     @if($bandera_pagar_en_linea==0)
+                                    @if(optional($peticion)->mp_paymentmethod=="SUC")
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                    @elseif(!isset($peticion))
+                                    <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                    @endif
                                     @endif
                                     @php
                                         $bandera_pagar_en_linea=1;
@@ -160,10 +164,14 @@
                                     @elseif($adeudo->pagado_bnd==0 and
                                             isset(optional($adeudo->pagoOnLine)->total) and
                                             $existe_seccion_valida==1)
-                                    <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO-{{ $respuesta_msj }}</span>
+                                    <span class="badge badge-danger"><i class="glyphicon glyphicon-remove"></i>NO-{{ $respuesta_msj }} </span>
 
                                     @if($bandera_pagar_en_linea==0)
+                                    @if(optional($peticion)->mp_paymentmethod=="SUC")
                                     <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                    @elseif(!isset($peticion))
+                                    <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                    @endif
                                     @endif
                                     @php
                                         $bandera_pagar_en_linea=1;
