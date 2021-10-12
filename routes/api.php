@@ -24,3 +24,4 @@ Route::post(
         'uses' => 'FichaPagosController@successMultipagos',
     )
 )->middleware('corsMultipagos');
+

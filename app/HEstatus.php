@@ -5,17 +5,18 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ConceptoMultipago extends Model
+class HEstatus extends Model
 {
+    
     use SoftDeletes;
 
     public function __construct(array $attributes = array())
     {
         parent::__construct($attributes);
-    }
+    } 
 
 	//Mass Assignment
-	protected $fillable = ['name','usu_alta_id','usu_mod_id'];
+	protected $fillable = ['tabla','cliente_id','seguimiento_id','estatus','estatus_id','fecha','usu_alta_id','usu_mod_id'];
 
 	public function usu_alta() {
 		return $this->hasOne('App\User', 'id', 'usu_alta_id');
@@ -26,10 +27,5 @@ class ConceptoMultipago extends Model
 	}// end
 
 
-	protected $dates = ['deleted_at'];
-
-	public function plantels()
-	{
-		return $this->belongsToMany('App\Plantel', 'concepto_multipago_plantel', 'concepto_multipago_id', 'plantel_id');
-	} // end
+    protected $dates = ['deleted_at'];
 }

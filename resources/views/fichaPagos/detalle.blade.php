@@ -154,6 +154,10 @@ $(document).ready(function(){
         }else{
             pagador=$('#otra_persona').val();
         }
+        if(pagador==""){
+            alert('Debe indicar el nombre de la persona que realiza el pago.');
+
+        }else{
         //console.log(pagador);
         bootbox.confirm({
             message: "Confirmar datos de pago: <br>"+
@@ -209,6 +213,7 @@ $(document).ready(function(){
             }
             }
         );
+        }
     });
 });
 

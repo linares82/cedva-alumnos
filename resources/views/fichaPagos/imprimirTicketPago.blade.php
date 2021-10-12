@@ -26,7 +26,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->where('st_plantel_
         <tr>
             <td align="center" colspan="2">
                 @if(isset($combinacion->especialidad->imagen))
-                    <img src="{{asset('storage/especialidads/'.$combinacion->especialidad->imagen)}}"
+                    <img src="{{env('APP_MAIN_URL').'/storage/especialidads/'.$combinacion->especialidad->imagen }}"
                         alt='img' style='width: 100px;
                         margin: 4px;'>
                 @endif
@@ -209,7 +209,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->where('st_plantel_
     <tr>
         <td align="center" colspan="2">
             @if(isset($combinacion->especialidad->imagen))
-                <img src="{{asset('storage/especialidads/'.$combinacion->especialidad->imagen)}}"
+                <img src="{{env('APP_MAIN_URL').'/storage/especialidads/'.$combinacion->especialidad->imagen }}"
                     alt='img' style='width: 100px;
                     margin: 4px;'>
             @endif

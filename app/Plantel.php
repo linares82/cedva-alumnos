@@ -3,8 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\GetAllDataTrait;
-use App\Traits\RelationManagerTrait;
+
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Plantel extends Model

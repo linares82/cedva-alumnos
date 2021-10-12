@@ -26,20 +26,25 @@ use App\TipoPersona;
 use App\UsoFactura;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Luecano\NumeroALetras\NumeroALetras;
 use SoapClient;
-use Session;
+use Illuminate\Support\Facades\Session;
 use SimpleXMLElement;
 use DOMDocument;
+use Illuminate\Support\Str;
 
 class FichaPagosController extends Controller
 {
     public function index()
     {
         $cliente = Cliente::where('matricula', Auth::user()->name)->first();
+        /*$pago=Pago::find(86721);
+        $pago->fecha="2021-10-11";
+        $pago->save();*/
+
         /*$adeudos = Adeudo::where('adeudos.cliente_id', $cliente->id)
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->whereNull('cc.deleted_at')
@@ -52,10 +57,12 @@ class FichaPagosController extends Controller
             ->get();
         //dd($combinaciones);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
+        //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
+        $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)
-        ->orderBy('fecha_limite')
-        ->whereNull('deleted_at')
-        ->get();
+            ->orderBy('fecha_limite')
+            ->whereNull('deleted_at')
+            ->get();
         //dd($adeudo_pago_online->toArray());
         $secciones_validas = Seccion::all();
 
@@ -145,36 +152,38 @@ class FichaPagosController extends Controller
             ->get();
         //dd($adeudos->toArray());
         foreach ($adeudos as $adeudo) {
-            //dd($adeudo->pagoOnLine);
+            Log::Info($adeudo->toArray());
             $adeudo_pago_online = optional($adeudo)->pagoOnLine;
             //$adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
+            //dd($adeudo->toArray());
             if ($adeudo->pagado_bnd == 1) {
 
                 if (is_null($adeudo_pago_online)) {
                     //dd($adeudo->caja->pago);
-                    $input['matricula'] = $adeudo->cliente->matricula;
-                    $input['adeudo_id'] = $adeudo->id;
-                    if($adeudo->caja_id==0){
-                        $input['pago_id'] =0;
-                        $input['caja_id'] = 0;
-                        $input['subtotal'] = 0;
-                        $input['descuento'] = 0;
-                        $input['recargo'] = 0;
-                        $input['total'] = 0;
-                    }else{
-                        $input['pago_id'] = $adeudo->caja->pago->id;
-                        $input['caja_id'] = $adeudo->caja->id;
-                        $input['subtotal'] = $adeudo->caja->subtotal;
-                        $input['descuento'] = $adeudo->caja->descuento;
-                        $input['recargo'] = $adeudo->caja->recargo;
-                        $input['total'] = $adeudo->caja->total;
+                    $inputC['matricula'] = $adeudo->cliente->matricula;
+                    $inputC['adeudo_id'] = $adeudo->id;
+                    if ($adeudo->caja_id == 0) {
+                        $inputC['pago_id'] = 0;
+                        $inputC['caja_id'] = 0;
+                        $inputC['subtotal'] = 0;
+                        $inputC['descuento'] = 0;
+                        $inputC['recargo'] = 0;
+                        $inputC['total'] = 0;
+                    } else {
+                        $inputC['pago_id'] = $adeudo->caja->pago->id;
+                        $inputC['caja_id'] = $adeudo->caja->id;
+                        $inputC['subtotal'] = $adeudo->caja->subtotal;
+                        $inputC['descuento'] = $adeudo->caja->descuento;
+                        $inputC['recargo'] = $adeudo->caja->recargo;
+                        $inputC['total'] = $adeudo->caja->total;
                     }
-                    $input['cliente_id'] = $adeudo->cliente_id;
-                    $input['plantel_id'] = $adeudo->cliente->plantel_id;
-                    $input['usu_alta_id'] = 1;
-                    $input['usu_mod_id'] = 1;
-                    AdeudoPagoOnLine::create($input);
-                }else{
+                    $inputC['cliente_id'] = $adeudo->cliente_id;
+                    $inputC['plantel_id'] = $adeudo->cliente->plantel_id;
+                    $inputC['usu_alta_id'] = 1;
+                    $inputC['usu_mod_id'] = 1;
+
+                    AdeudoPagoOnLine::create($inputC);
+                } else {
                     $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
                     //dd($hoy->toDateString());
                     //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
@@ -195,6 +204,7 @@ class FichaPagosController extends Controller
                     //$input['cliente_id'] = $adeudo->cliente_id;
                     //$input['usu_alta_id'] = 1;
                     //$input['usu_mod_id'] = 1;
+                    //dd($input);
                     $adeudo_pago_online->update($input);
                     //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
                     //}
@@ -202,22 +212,22 @@ class FichaPagosController extends Controller
             } else {
 
                 if (is_null($adeudo_pago_online)) {
-                    $input['matricula'] = $adeudo->cliente->matricula;
-                    $input['adeudo_id'] = $adeudo->id;
-                    $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
-                    $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
+                    $inputC['matricula'] = $adeudo->cliente->matricula;
+                    $inputC['adeudo_id'] = $adeudo->id;
+                    $inputC['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                    $inputC['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
                     $datos_calculados = $this->predefinido($adeudo->id);
                     //dd($datos_calculados);
-                    $input['subtotal'] = $datos_calculados['subtotal'];
-                    $input['descuento'] = $datos_calculados['descuento'];
-                    $input['recargo'] = $datos_calculados['recargo'];
-                    $input['total'] = $datos_calculados['total'];
-                    $input['fecha_limite'] = $datos_calculados['fecha_limite'];
-                    $input['cliente_id'] = $adeudo->cliente_id;
-                    $input['plantel_id'] = $adeudo->cliente->plantel_id;
-                    $input['usu_alta_id'] = 1;
-                    $input['usu_mod_id'] = 1;
-                    AdeudoPagoOnLine::create($input);
+                    $inputC['subtotal'] = $datos_calculados['subtotal'];
+                    $inputC['descuento'] = $datos_calculados['descuento'];
+                    $inputC['recargo'] = $datos_calculados['recargo'];
+                    $inputC['total'] = $datos_calculados['total'];
+                    $inputC['fecha_limite'] = $datos_calculados['fecha_limite'];
+                    $inputC['cliente_id'] = $adeudo->cliente_id;
+                    $inputC['plantel_id'] = $adeudo->cliente->plantel_id;
+                    $inputC['usu_alta_id'] = 1;
+                    $inputC['usu_mod_id'] = 1;
+                    AdeudoPagoOnLine::create($inputC);
                 } else {
                     $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
                     //dd($hoy->toDateString());
@@ -289,10 +299,10 @@ class FichaPagosController extends Controller
 
                 if (
                     (($beca->lectivo->inicio <= $adeudo->fecha_pago and $beca->lectivo->fin >= $adeudo->fecha_pago) or
-                        (($anioInicio == $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin == $anioAdeudo and $mesFin >= $mesAdeudo)) or
-                        (($anioInicio < $anioAdeudo or $mesInicio >= $mesAdeudo) and ($anioFin >= $anioAdeudo and $mesFin >= $mesAdeudo))) and
-                    $beca->aut_dueno == 4 and
-                    is_null($beca->deleted_at)
+                    (($anioInicio == $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin == $anioAdeudo and $mesFin >= $mesAdeudo)) or
+                    (($anioInicio == $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin > $anioAdeudo)) or
+                    (($anioInicio < $anioAdeudo) and ($anioFin == $anioAdeudo and $mesFin >= $mesAdeudo))) and
+                    $beca->aut_dueno == 4 and is_null($beca->deleted_at)
                 ) {
                     $beca_a = $beca->id;
                     //dd($beca);
@@ -399,7 +409,7 @@ class FichaPagosController extends Controller
                                     //echo $caja_ln['recargo'];
                                 } else {
                                     if ($adeudo->bnd_eximir_descuento_regla == 0) {
-                                        $regla_descuento = $caja_ln['total'] * $regla->porcentaje * -1;
+                                        $regla_descuento = $caja_ln['subtotal'] * $regla->porcentaje * -1;
                                         $caja_ln['descuento'] = $caja_ln['descuento'] + $regla_descuento;
                                         $caja_ln['total'] = $caja_ln['total'] - $caja_ln['descuento'];
 
@@ -522,6 +532,9 @@ class FichaPagosController extends Controller
     public function verDetalle(Request $request)
     {
         $datos = $request->all();
+
+        //dd($navegador."-".$dispositivo);
+
         $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
         $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
         $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->pluck('name', 'id');
@@ -667,6 +680,8 @@ class FichaPagosController extends Controller
             $datosMultipagos['url_peticion'] = $parametros->valor;
             $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
             $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
+            $datosMultipagos['navegador'] = $this->getBrowser($_SERVER['HTTP_USER_AGENT']);
+            $datosMultipagos['dispositivo']= $this->getDispositivo();
 
             //dd($datosMultipagos);
             $peticion_multipagos = PeticionMultipago::create($datosMultipagos);
@@ -707,6 +722,8 @@ class FichaPagosController extends Controller
             $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
             //dd($adeudo_pago_online);
             $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
+            $datosMultipagos['navegador'] = $this->getBrowser($_SERVER['HTTP_USER_AGENT']);
+            $datosMultipagos['dispositivo']= $this->getDispositivo();
 
             $peticion_multipagos->update($datosMultipagos);
             //dd($peticion_multipagos);
@@ -883,7 +900,7 @@ class FichaPagosController extends Controller
         $input['plantel_id'] = $caja->plantel_id;
         $input['consecutivo'] = $caja->consecutivo;
         $input['monto'] = $pago->monto;
-        $input['toke_unico'] = uniqid(base64_encode(str_random(6)));
+        $input['toke_unico'] = uniqid(base64_encode(Str::random(6)));
         $input['usu_alta_id'] = 1;
         $input['usu_mod_id'] = 1;
         $input['fecha_pago'] = $pago->fecha;
@@ -958,8 +975,8 @@ class FichaPagosController extends Controller
         $cliente = $adeudoPagoOnLine->cliente;
         $tipoPersonas = TipoPersona::pluck('name', 'id');
         $adeudo_pago_on_line = $adeudoPagoOnLine->id;
-        $usoFactura=UsoFactura::select('id',DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name','id');
-        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line','usoFactura'));
+        $usoFactura = UsoFactura::select('id', DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name', 'id');
+        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line', 'usoFactura'));
     }
 
     public function confirmarFactura(Request $request, $id)
@@ -977,7 +994,7 @@ class FichaPagosController extends Controller
             'fpais' => 'required',
             'fcp' => 'required',
             'curp' => 'required',
-            'fmail'=>'required',
+            'fmail' => 'required',
         ];
         $customMessages = [
             'required' => 'El campo es obligatorio, capturar un valor.'
@@ -992,6 +1009,7 @@ class FichaPagosController extends Controller
         $plantel = $adeudoPagoOnLine->cliente->plantel;
         $pago = $adeudoPagoOnLine->pago;
         $caja = $adeudoPagoOnLine->caja;
+        //dd($caja->toArray());
         $fecha_anio = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->year;
         //Parametros para el webservice
         $url = Param::where('llave', 'webServiceFacturacion')->first();
@@ -1027,15 +1045,15 @@ class FichaPagosController extends Controller
                 $total_pagos = $total_pagos + $pago->monto;
             }
             //dd($cliente->usoFactura);
-            $grado=$adeudo->combinacionCliente->grado;
-            if(
-                is_null($grado->nivel_educativo_sat_id) or $grado->nivel_educativo_sat_id=="" or
-                is_null($grado->clave_servicio) or $grado->clave_servicio=="" or
-                is_null($grado->seccion) or $grado->seccion=="" or
-                is_null($grado->fec_rvoe) or $grado->fec_rvoe=="" or
-                is_null($grado->rvoe) or $grado->rvoe==""
-            ){
-                dd("Uno o más datos no estan definidos en el grado con id:".$grado->id);
+            $grado = $adeudo->combinacionCliente->grado;
+            if (
+                is_null($grado->nivel_educativo_sat_id) or $grado->nivel_educativo_sat_id == "" or
+                is_null($grado->clave_servicio) or $grado->clave_servicio == "" or
+                is_null($grado->seccion) or $grado->seccion == "" or
+                is_null($grado->fec_rvoe) or $grado->fec_rvoe == "" or
+                is_null($grado->rvoe) or $grado->rvoe == ""
+            ) {
+                dd("Uno o más datos no estan definidos en el grado con id:" . $grado->id);
             }
 
             $objetosArray = array();
@@ -1116,7 +1134,7 @@ class FichaPagosController extends Controller
                         'Receptor' => array(
                             'Nombre' => $cliente->frazon,
                             'Rfc' => $cliente->frfc, //'TEST010203001',
-                            'UsoCFDI' => $cliente->usoFactura->clave//$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                            'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
                         ),
                         //'CondicionesDePago' => 'CONDICIONES', //opcional
                         'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
@@ -1229,7 +1247,7 @@ class FichaPagosController extends Controller
                         'Receptor' => array(
                             'Nombre' => $cliente->frazon,
                             'Rfc' => $cliente->frfc, //'TEST010203001',
-                            'UsoCFDI' => $cliente->usoFactura->clave//$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                            'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
                         ),
                         //'CondicionesDePago' => 'CONDICIONES', //opcional
                         'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
@@ -1271,7 +1289,7 @@ class FichaPagosController extends Controller
                     )
                 );
             }
-
+            Log::info($objetosArray);
             //dd($objetosArray);
             $result = $client->GenerarCFDI($objetosArray)->GenerarCFDIResult;
             //dd($result);
@@ -1312,13 +1330,13 @@ class FichaPagosController extends Controller
                         ),
                         'uuid' => $pago1->uuid,
                         'email' => $cliente->fmail,
-                        'titulo' => "Factura ".$plantel->nombre_corto,
+                        'titulo' => "Factura " . $plantel->nombre_corto,
                         'mensaje' => "",
                     );
-                    Log::info('uuid:' . $pago1->uuid.
-                    ' email:' . $cliente->fmail.
-                    ' titulo:' . "Factura ".$plantel->nombre_corto.
-                    ' mensaje:' . "");
+                    Log::info('uuid:' . $pago1->uuid .
+                        ' email:' . $cliente->fmail .
+                        ' titulo:' . "Factura " . $plantel->nombre_corto .
+                        ' mensaje:' . "");
                     $result = $client->EnviarCFDI($objetoArray)->EnviarCFDIResult;
                     if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
                         Session::flash('error', $result->ErrorGeneral);
@@ -1507,7 +1525,7 @@ class FichaPagosController extends Controller
         $cliente = Cliente::where('matricula', Auth::user()->name)->first();
         //dd($cliente);
         $tipoPersonas = TipoPersona::pluck('name', 'id');
-        $usoFactura=UsoFactura::select('id',DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name','id');
+        $usoFactura = UsoFactura::select('id', DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name', 'id');
         //$adeudo_pago_on_line = $adeudoPagoOnLine->id;
         return view('fichaPagos.datos_fiscales', compact('cliente', 'tipoPersonas', 'usoFactura'));
     }
@@ -1527,7 +1545,7 @@ class FichaPagosController extends Controller
             'fpais' => 'required',
             'fcp' => 'required',
             'curp' => 'required',
-            'fmail'=> 'required',
+            'fmail' => 'required',
         ];
         $customMessages = [
             'required' => 'El campo es obligatorio, capturar un valor.'
@@ -1549,21 +1567,21 @@ class FichaPagosController extends Controller
         if ($request->ajax()) {
             //dd($request->all());
             $tipoPersona = $request->get('tipo_persona_id');
-            $uso_factura=$request->get('uso_factura_id');
+            $uso_factura = $request->get('uso_factura_id');
 
             $final = array();
             $r_aux = DB::table('uso_facturas as uf');
-            if($tipoPersona==1){
-                $r_aux->select('id',DB::raw('concat(clave,"-",descripcion) as name'))
-                ->where('uf.bnd_fisica', 1)
-                ->whereNull('deleted_at');
-            }else{
-                $r_aux->select('id',DB::raw('concat(clave,"-",descripcion) as name'))
-                ->where('uf.bnd_moral', 1)
-                ->whereNull('deleted_at');
+            if ($tipoPersona == 1) {
+                $r_aux->select('id', DB::raw('concat(clave,"-",descripcion) as name'))
+                    ->where('uf.bnd_fisica', 1)
+                    ->whereNull('deleted_at');
+            } else {
+                $r_aux->select('id', DB::raw('concat(clave,"-",descripcion) as name'))
+                    ->where('uf.bnd_moral', 1)
+                    ->whereNull('deleted_at');
             }
 
-            $r=$r_aux->get();
+            $r = $r_aux->get();
             //dd($r);
             if (isset($uso_factura) and $uso_factura != 0) {
                 foreach ($r as $r1) {
@@ -1585,6 +1603,87 @@ class FichaPagosController extends Controller
             } else {
                 return $r;
             }
+        }
+    }
+
+    function getBrowser($user_agent)
+    {
+
+        if (strpos($user_agent, 'MSIE') !== FALSE)
+            return 'Internet explorer';
+        elseif (strpos($user_agent, 'Edge') !== FALSE) //Microsoft Edge
+            return 'Microsoft Edge';
+        elseif (strpos($user_agent, 'Trident') !== FALSE) //IE 11
+            return 'Internet explorer';
+        elseif (strpos($user_agent, 'Opera Mini') !== FALSE)
+            return "Opera Mini";
+        elseif (strpos($user_agent, 'Opera') || strpos($user_agent, 'OPR') !== FALSE)
+            return "Opera";
+        elseif (strpos($user_agent, 'Firefox') !== FALSE)
+            return 'Mozilla Firefox';
+        elseif (strpos($user_agent, 'Chrome') !== FALSE)
+            return 'Google Chrome';
+        elseif (strpos($user_agent, 'Safari') !== FALSE)
+            return "Safari";
+        else
+            return 'No hemos podido detectar su navegador';
+    }
+
+    function getDispositivo()
+    {
+        $tablet_browser = 0;
+        $mobile_browser = 0;
+        $body_class = 'desktop';
+
+        if (preg_match('/(tablet|ipad|playbook)|(android(?!.*(mobi|opera mini)))/i', strtolower($_SERVER['HTTP_USER_AGENT']))) {
+            $tablet_browser++;
+            $body_class = "tablet";
+        }
+
+        if (preg_match('/(up.browser|up.link|mmp|symbian|smartphone|midp|wap|phone|android|iemobile)/i', strtolower($_SERVER['HTTP_USER_AGENT']))) {
+            $mobile_browser++;
+            $body_class = "mobile";
+        }
+
+        if ((strpos(strtolower($_SERVER['HTTP_ACCEPT']), 'application/vnd.wap.xhtml+xml') > 0) or ((isset($_SERVER['HTTP_X_WAP_PROFILE']) or isset($_SERVER['HTTP_PROFILE'])))) {
+            $mobile_browser++;
+            $body_class = "mobile";
+        }
+
+        $mobile_ua = strtolower(substr($_SERVER['HTTP_USER_AGENT'], 0, 4));
+        $mobile_agents = array(
+            'w3c ', 'acs-', 'alav', 'alca', 'amoi', 'audi', 'avan', 'benq', 'bird', 'blac',
+            'blaz', 'brew', 'cell', 'cldc', 'cmd-', 'dang', 'doco', 'eric', 'hipt', 'inno',
+            'ipaq', 'java', 'jigs', 'kddi', 'keji', 'leno', 'lg-c', 'lg-d', 'lg-g', 'lge-',
+            'maui', 'maxo', 'midp', 'mits', 'mmef', 'mobi', 'mot-', 'moto', 'mwbp', 'nec-',
+            'newt', 'noki', 'palm', 'pana', 'pant', 'phil', 'play', 'port', 'prox',
+            'qwap', 'sage', 'sams', 'sany', 'sch-', 'sec-', 'send', 'seri', 'sgh-', 'shar',
+            'sie-', 'siem', 'smal', 'smar', 'sony', 'sph-', 'symb', 't-mo', 'teli', 'tim-',
+            'tosh', 'tsm-', 'upg1', 'upsi', 'vk-v', 'voda', 'wap-', 'wapa', 'wapi', 'wapp',
+            'wapr', 'webc', 'winw', 'winw', 'xda ', 'xda-'
+        );
+
+        if (in_array($mobile_ua, $mobile_agents)) {
+            $mobile_browser++;
+        }
+
+        if (strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'opera mini') > 0) {
+            $mobile_browser++;
+            //Check for tablets on opera mini alternative headers
+            $stock_ua = strtolower(isset($_SERVER['HTTP_X_OPERAMINI_PHONE_UA']) ? $_SERVER['HTTP_X_OPERAMINI_PHONE_UA'] : (isset($_SERVER['HTTP_DEVICE_STOCK_UA']) ? $_SERVER['HTTP_DEVICE_STOCK_UA'] : ''));
+            if (preg_match('/(tablet|ipad|playbook)|(android(?!.*mobile))/i', $stock_ua)) {
+                $tablet_browser++;
+            }
+        }
+        if ($tablet_browser > 0) {
+            // Si es tablet has lo que necesites
+            return 'Tablet';
+        } else if ($mobile_browser > 0) {
+            // Si es dispositivo mobil has lo que necesites
+            return 'Mobil';
+        } else {
+            // Si es ordenador de escritorio has lo que necesites
+            return 'PC';
         }
     }
 }

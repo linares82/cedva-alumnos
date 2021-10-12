@@ -2,14 +2,11 @@
 
 namespace App;
 
-use App\Traits\GetAllDataTrait;
-use App\Traits\RelationManagerTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PlanPago extends Model
 {
-    use RelationManagerTrait, GetAllDataTrait;
     use SoftDeletes;
 
     public function __construct(array $attributes = array())

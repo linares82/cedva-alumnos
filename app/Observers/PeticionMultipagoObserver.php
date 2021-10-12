@@ -20,7 +20,7 @@ class PeticionMultipagoObserver
                 $input['peticion_multipagos_id']=$this->peticionMultipagoN->id;
                 $input['campo']=$llave;
                 $input['valor_nuevo']=$this->peticionMultipagoN->$llave;
-                $input['valor_anterior']=$valor;
+                $input['valor_anterior']=(is_null($valor) ? 'nulo' : $valor);
                 $input['usu_alta_id']=isset(Auth::user()->name) ? Auth::user()->name : 1;
                 $input['usu_mod_id']=isset(Auth::user()->name) ? Auth::user()->name : 1;
                 HPeticion::create($input);

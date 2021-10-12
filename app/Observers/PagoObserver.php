@@ -2,10 +2,17 @@
 
 namespace App\Observers;
 
+use Log;
+use Auth;
+use Exception;
 use App\Pago;
-use App\CuentasEfectivo;
-use App\IngresoEgreso;
+use App\Param;
+use App\BsBaja;
 use App\Seguimiento;
+use App\IngresoEgreso;
+
+use App\CuentasEfectivo;
+use App\valenceSdk\samples\BasicSample\UsoApi;
 
 class PagoObserver
 {
@@ -56,6 +63,7 @@ class PagoObserver
 
     public function updated(Pago $pago)
     {
+        //dd("inicio");
         $this->pago = $pago;
         $ingreso_egreso = IngresoEgreso::where('pago_id', $this->pago->id)->first();
         //dd($ingreso_egreso);
@@ -91,6 +99,48 @@ class PagoObserver
                 $cliente->save();
                 $seguimiento->st_seguimiento_id = 2;
                 $seguimiento->save();
+
+                $param = Param::where('llave', 'apiVersion_bSpace')->first();
+                $bs_activo = Param::where('llave', 'api_brightSpace_activa')->first();
+                if ($bs_activo->valor == 1) {
+                    try {
+                        $apiBs = new UsoApi();
+
+                        //dd($datos);
+                        //Log::info('matricula bs reactivar en caja:'.$cliente->matricula);
+                        $resultado = $apiBs->doValence2('GET', '/d2l/api/lp/' . $param->valor . '/users/?orgDefinedId=' . $cliente->matricula);
+                        //Muestra resultado
+                        $r = $resultado[0];
+                        $datos = ['isActive' => True];
+                        if (isset($r['UserId'])) {
+                            $resultado2 = $apiBs->doValence2('PUT', '/d2l/api/lp/' . $param->valor . '/users/' . $r['UserId'] . '/activation', $datos);
+                            $bsBaja = BsBaja::where('cliente_id', $cliente->id)
+                                ->where('bnd_baja', 1)
+                                ->whereNull('bnd_reactivar')
+                                ->first();
+                            //dd($bsBaja);
+                            if (!is_null($bsBaja)) {
+                                if (isset($resultado2['IsActive']) and $resultado2['IsActive'] and !is_null($bsBaja)) {
+                                    $input['cliente_id'] = $cliente->id;
+                                    $input['fecha_reactivar'] = Date('Y-m-d');
+                                    $input['bnd_reactivar'] = 1;
+                                    $input['usu_mod_id'] = Auth::user()->id;
+                                    $bsBaja->update($input);
+                                } else {
+                                    $input['cliente_id'] = $cliente->id;
+                                    $input['fecha_reactivar'] = Date('Y-m-d');
+                                    $input['bnd_reactivar'] = 0;
+                                    $input['usu_mod_id'] = Auth::user()->id;
+                                    $bsBaja->update($input);
+                                }
+                            }
+                        }
+                        Log::info('pago actualizado Fil todo ok');
+                    } catch (Exception $e) {
+                        Log::info("cliente no encontrado en Brigth Space u otro error: " . $cliente->matricula . " - " . $e->getMessage());
+                        //return false;
+                    }
+                }
             }
         }
     }

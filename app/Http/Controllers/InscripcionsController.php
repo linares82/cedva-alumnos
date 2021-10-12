@@ -1005,7 +1005,13 @@ class InscripcionsController extends Controller
             array_push($resultados, $resultado);
         }
         //dd($resultados);
-        $consulta_calificaciones = ConsultaCalificacion::where('matricula', 'like', "%" . $cliente->matricula . "%")->get();
+        if($cliente->matricula<>"" and !is_null($cliente->matricula)){
+            $consulta_calificaciones = ConsultaCalificacion::where('matricula', 'like', "%" . $cliente->matricula . "%")->get();
+        }else{
+            $consulta_calificaciones=collect();
+    	}
+
+
         //dd($consulta_calificaciones);
         //dd($inscripcion);
         /*return view('inscripcions.reportes.lista_alumnosr',compact('registros'))
@@ -2678,7 +2684,12 @@ class InscripcionsController extends Controller
             array_push($resultados, $resultado);
         }
         //dd($resultados);
-        $consulta_calificaciones = ConsultaCalificacion::where('matricula', 'like', "%" . $cliente->matricula . "%")->get();
+        if($cliente->matricula<>"" and !is_null($cliente->matricula)){
+            $consulta_calificaciones = ConsultaCalificacion::where('matricula', 'like', "%" . $cliente->matricula . "%")->get();
+        }else{
+            $consulta_calificaciones=collect();
+        }
+
         //dd($consulta_calificaciones);
         //dd($inscripcion);
         /*return view('inscripcions.reportes.lista_alumnosr',compact('registros'))
