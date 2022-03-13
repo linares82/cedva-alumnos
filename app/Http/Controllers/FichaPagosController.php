@@ -2,39 +2,46 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Caja;
+use App\Pago;
+use App\User;
+use App\Param;
+use Exception;
 use App\Adeudo;
+use App\CajaLn;
+use SoapClient;
+use App\Cliente;
+use App\Message;
+use App\Plantel;
+use App\Seccion;
+use DOMDocument;
+use App\Empleado;
+use Carbon\Carbon;
+use App\UsoFactura;
+use App\PromoPlanLn;
+use App\TipoPersona;
+use SimpleXMLElement;
+use App\CuentasEfectivo;
+use App\ImpresionTicket;
 use App\AdeudoPagoOnLine;
 use App\AutorizacionBeca;
-use App\Caja;
-use App\CajaLn;
-use App\Cliente;
-use App\CombinacionCliente;
-use App\CuentasEfectivo;
-use App\Empleado;
-use App\ImpresionTicket;
-use App\NivelEducativoSat;
-use App\Pago;
-use App\Param;
-use App\PeticionMultipago;
-use App\Plantel;
-use App\PromoPlanLn;
-use App\Seccion;
 use App\SuccessMultipago;
-use App\SerieFolioSimplificado;
-use App\TipoPersona;
-use App\UsoFactura;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-use Exception;
-use Illuminate\Support\Facades\Log;
-use Luecano\NumeroALetras\NumeroALetras;
-use SoapClient;
-use Illuminate\Support\Facades\Session;
-use SimpleXMLElement;
-use DOMDocument;
+use App\NivelEducativoSat;
+use App\PeticionMultipago;
+use App\CombinacionCliente;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use App\SerieFolioSimplificado;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+
+use Illuminate\Support\Facades\Session;
+use Luecano\NumeroALetras\NumeroALetras;
+
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\NotificacionErrorApiFoliosDigitales;
+use Mail;
 
 class FichaPagosController extends Controller
 {
@@ -56,7 +63,7 @@ class FichaPagosController extends Controller
             //->with('grado')
             ->get();
         //dd($combinaciones);
-        $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
+        //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)
@@ -289,6 +296,13 @@ class FichaPagosController extends Controller
             $beca_a = 0;
             foreach ($cliente->autorizacionBecas as $beca) {
                 //dd(is_null($beca->deleted_at));
+				if ($beca->bnd_tiene_vigencia == 1 and !is_null($beca->vigencia)) {
+					$fechaAdeudo = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago);
+					$fechaVigenciaBeca = Carbon::createFromFormat('Y-m-d', $beca->vigencia);
+					if ($fechaAdeudo->lessThanOrEqualTo($fechaVigenciaBeca)) {
+						$beca_a = $beca->id;
+					}
+				} elseif ($beca->bnd_tiene_vigencia == 0 and is_null($beca->vigencia)) {
                 $mesAdeudo = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->month;
                 $anioAdeudo = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->year;
                 $mesInicio = Carbon::createFromFormat('Y-m-d', $beca->lectivo->inicio)->month;
@@ -307,6 +321,7 @@ class FichaPagosController extends Controller
                     $beca_a = $beca->id;
                     //dd($beca);
                 }
+				}
             }
             //dd($caja_ln);
             $beca_autorizada = AutorizacionBeca::find($beca_a);
@@ -1294,7 +1309,41 @@ class FichaPagosController extends Controller
             $result = $client->GenerarCFDI($objetosArray)->GenerarCFDIResult;
             //dd($result);
             if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
+
                 Session::flash('error', $result->ErrorGeneral);
+
+                $message = new Message;
+                $message->setAttribute('user_id', Auth::user()->id);
+                //$message->setAttribute('code_error', 1);
+                $message->setAttribute('mensaje', $result->ErrorDetallado." - " . $result->ErrorGeneral);
+                $message->save();
+
+                Log::info("Mensaje de error api folios digitales facturacion: ".$result->ErrorGeneral);
+
+                /*Notificacion no envia
+                $toUser1 = User::find(1);
+                $toUser2 = User::find(3);
+
+                // send notification using the "Notification" facade
+                Notification::send($toUser1, new NotificacionErrorApiFoliosDigitales($toUser2));
+                */
+
+                $destinatario = "linares82@gmail.com";
+                $n = Auth::user()->name;
+                $asunto = "Problema Folios Digitales";
+                $contenido = $message->mensaje." fecha y hora: ". $message->created_at;
+                $from = "ohpelayo@gmail.com";
+
+                //dd(env('MAIL_FROM_ADDRESS'));
+
+                $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
+                $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
+                    use ($asunto, $destinatario, $n, $from) {
+                        $message->from(env('MAIL_FROM_ADDRESS','hola@grupocedva.com'), env('MAIL_FROM_NAME','Grupo CEDVA'));
+                        $message->to($destinatario, $n)->subject($asunto);
+                        $message->replyTo($from);
+                    });
+
                 return back();
             } elseif ($result->OperacionExitosa == true) {
                 /*

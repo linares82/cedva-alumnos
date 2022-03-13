@@ -27,6 +27,7 @@ Route::get('/home', 'HomeController@index')
 
 Auth::routes();
 //Route::get('/', 'Auth\LoginController@showLoginForm');
+
 Route::get('/', function () {
     return view('welcome');
 });

@@ -119,8 +119,8 @@
                                         @endif
                                     </td>
                                     <td>
-                                        {{ $adeudo->fecha_pago }} -
-                                        @if(isset(optional($adeudo->pagoOnLine)->fecha_limite))
+                                        @if($adeudo->pagado_bnd==1)
+                                        @elseif(isset(optional($adeudo->pagoOnLine)->fecha_limite))
                                         {{ date_format(date_create(optional($adeudo->pagoOnLine)->fecha_limite),'d-m-Y') }}
                                         @endif
                                     </td>
@@ -217,7 +217,9 @@
 
                                             @php
                                             $mesHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
+                                            $anioHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->year;
                                             $mesFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->month;
+                                            $anioFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->year;
                                             $fechaPago=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $adeudo->caja->pago->updated_at);
                                             $fechaHoy=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s'));
                                             //dd($fechaPago->diffInHours($fechaHoy));
@@ -227,7 +229,9 @@
                                             @if(is_null($adeudo->caja->pago->uuid) and
                                                 is_null($adeudo->caja->pago->cbb) and
                                                 is_null($adeudo->caja->pago->xml) and
-                                                $mesHoy==$mesFechaPago /*and
+                                                $mesHoy==$mesFechaPago and
+                                                $anioHoy==$anioFechaPago
+						 /*and
                                                 $fechaPago->diffInHours($fechaHoy)<=72*/)
                                                 <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
                                                     Facturar
