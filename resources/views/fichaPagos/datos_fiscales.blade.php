@@ -42,7 +42,7 @@
             <div class="form-group col-md-4 @if($errors->has('tipo_persona_id')) has-error @endif">
                 <label for="tipo_persona_id-field">*Tipo Persona</label>
                 {!! Form::select("tipo_persona_id", $tipoPersonas, null, array("class" => "form-control select_seguridad", "id" => "tipo_persona_id-field", 'style'=>'width:100%')) !!}
-                <div id='loading' style='display: none'><img src="{{ asset('images/ajax-loader.gif') }}" title="...Enviando" /></div> 
+                <div id='loading' style='display: none'><img src="{{ asset('images/ajax-loader.gif') }}" title="...Enviando" /></div>
                 @if($errors->has("tipo_persona_id"))
                 <span class="help-block">{{ $errors->first("tipo_persona_id") }}</span>
                 @endif
@@ -139,6 +139,13 @@
                 <span class="help-block">{{ $errors->first("fcp") }}</span>
                 @endif
             </div>
+            <div class="form-group col-md-4 @if($errors->has('regimen_fiscal_id')) has-error @endif">
+                <label for="regimen_fiscal_id-field">*Regimen Fiscal</label>
+                {!! Form::select("regimen_fiscal_id", $regimenFiscal, null, array("class" => "form-control select_seguridad", "id" => "regimen_fiscal_id-field", 'style'=>'width:100%')) !!}
+                @if($errors->has("regimen_fiscal_id"))
+                <span class="help-block">{{ $errors->first("regimen_fiscal_id") }}</span>
+                @endif
+            </div>
 
             <div class="row">
             </div>
@@ -155,11 +162,11 @@
 <script type="text/javascript">
 $(document).ready(function(){
     cmbUsoFactura();
-    
+
     $("#tipo_persona_id-field").change(function() {
         cmbUsoFactura();
    });
-    
+
     function cmbUsoFactura(){
         $.ajax({
                   url: '{{ route("fichaAdeudos.cmbUsoFactura") }}',
@@ -174,10 +181,10 @@ $(document).ready(function(){
                   success: function(data){
                       //$example.select2("destroy");
                       $('#uso_factura_id-field').html('');
-                      
+
                       //$('#especialidad_id-field').empty();
                       $('#uso_factura_id-field').append($('<option></option>').text('Seleccionar').val('0'));
-                      
+
                       $.each(data, function(i) {
                           //alert(data[i].name);
                           $('#uso_factura_id-field').append("<option "+data[i].selectec+" value=\""+data[i].id+"\">"+data[i].name+"<\/option>");
@@ -185,7 +192,7 @@ $(document).ready(function(){
                   }
               });
     }
-    
+
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let tipo_persona=$("#tipo_persona_id-field option:selected").text();
@@ -202,7 +209,7 @@ $(document).ready(function(){
         let pais=$("#fpais-field").val();
         let cp=$("#fcp-field").val();
         let mail=$("#fmail-field").val();
-        
+
         //console.log(forma_pago);
 
         //console.log(pagador);

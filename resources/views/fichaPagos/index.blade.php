@@ -46,6 +46,7 @@
         Les recordamos que en caso de requerir factura esto lo puede hacer durante las 72 hrs siguientes después de realizar su pago. Cualquier duda estamos a sus ordenes en el correo facturacion@grupocedva.com
     </div>
 
+    @if($cliente->bnd_doc_oblig_entregados==1)
     <div class="col-md-12">
         @php
             $j=0;
@@ -240,6 +241,10 @@
                                             @elseif(!is_null($adeudo->caja->pago->uuid) and
                                                     !is_null($adeudo->caja->pago->cbb) and
                                                     !is_null($adeudo->caja->pago->xml))
+                                                @php
+                                                    $fact_40_activa=\App\Param::where('llave', 'fact_40_activa')->first();
+                                                @endphp
+                                                @if($fact_40_activa->valor==0)
                                                 <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
                                                     <i class="ace-icon fa fa-download"></i> Pdf
                                                 </a>
@@ -247,6 +252,15 @@
                                                 <a href="{{ route('fichaAdeudos.getFacturaXmlByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" class="btn btn-info btn-white btn-xs">
                                                     <i class="ace-icon fa fa-download"></i> Xml
                                                 </a>
+                                                @elseif($fact_40_activa->valor==1)
+                                                <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid40', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
+                                                    <i class="ace-icon fa fa-download"></i> Pdf
+                                                </a>
+
+                                                <a href="{{ route('fichaAdeudos.getFacturaXmlByUuid40', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" class="btn btn-info btn-white btn-xs">
+                                                    <i class="ace-icon fa fa-download"></i> Xml
+                                                </a>
+                                                @endif
                                             @endif
                                             <!--@@endif-->
                                         @endif
@@ -267,6 +281,11 @@
             Sin informacion encontrada, por favor acudir a su plantel de inscripcion.
         @endif
     </div>
+    @else
+    <div class="col-md-12 alert alert-block alert-warning">
+    Total de documentos obligatorios no han sido entregados, acudir a control escolar de su plantel.
+    <div>
+    @endif
 </div>
 @endsection
 @push('scripts')

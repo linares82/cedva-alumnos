@@ -29,10 +29,20 @@
 
     @endif
 
+    @php
+        $fact_40_activa=\App\Param::where('llave', 'fact_40_activa')->first();
+
+    @endphp
+
+    @if($fact_40_activa->valor==0)
     {!! Form::model($cliente, array('route' => array('fichaAdeudos.confirmarFactura', $adeudo_pago_on_line),'method' => 'post','id'=>'frm')) !!}
+    @elseif($fact_40_activa->valor==1)
+    {!! Form::model($cliente, array('route' => array('fichaAdeudos.confirmarFactura40', $adeudo_pago_on_line),'method' => 'post','id'=>'frm')) !!}
+    @endif
+
             <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
                 <label for="curp-field">*CURP del Alumno</label>
-                <input type="hidden" name="_token" id="_token"  value="<?= csrf_token(); ?>"> 
+                <input type="hidden" name="_token" id="_token"  value="<?= csrf_token(); ?>">
                 {!! Form::text("curp", null, array("class" => "form-control input-sm", "id" => "curp-field", 'onkeyup'=>"javascript:this.value=this.value.toUpperCase();")) !!}
                 @if($errors->has("curp"))
                 <span class="help-block">{{ $errors->first("curp") }}</span>
@@ -42,7 +52,7 @@
             <div class="form-group col-md-4 @if($errors->has('tipo_persona_id')) has-error @endif">
                 <label for="tipo_persona_id-field">*Tipo Persona</label>
                 {!! Form::select("tipo_persona_id", $tipoPersonas, null, array("class" => "form-control select_seguridad", "id" => "tipo_persona_id-field", 'style'=>'width:100%')) !!}
-                <div id='loading' style='display: none'><img src="{{ asset('images/ajax-loader.gif') }}" title="...Enviando" /></div> 
+                <div id='loading' style='display: none'><img src="{{ asset('images/ajax-loader.gif') }}" title="...Enviando" /></div>
                 @if($errors->has("tipo_persona_id"))
                 <span class="help-block">{{ $errors->first("tipo_persona_id") }}</span>
                 @endif
@@ -139,6 +149,14 @@
                 <span class="help-block">{{ $errors->first("fcp") }}</span>
                 @endif
             </div>
+            <div class="form-group col-md-4 @if($errors->has('regimen_fiscal_id')) has-error @endif">
+                <label for="regimen_fiscal_id-field">*Regimen Fiscal</label>
+                {!! Form::select("regimen_fiscal_id", $regimenFiscal, null, array("class" => "form-control select_seguridad", "id" => "regimen_fiscal_id-field", 'style'=>'width:100%')) !!}
+                @if($errors->has("regimen_fiscal_id"))
+                <span class="help-block">{{ $errors->first("regimen_fiscal_id") }}</span>
+                @endif
+            </div>
+
 
             <div class="row">
             </div>
@@ -154,13 +172,13 @@
 @push('scripts')
 <script type="text/javascript">
 $(document).ready(function(){
-    
+
     cmbUsoFactura();
-    
+
     $("#tipo_persona_id-field").change(function() {
         cmbUsoFactura();
    });
-    
+
     function cmbUsoFactura(){
         $.ajax({
                   url: '{{ route("fichaAdeudos.cmbUsoFactura") }}',
@@ -175,10 +193,10 @@ $(document).ready(function(){
                   success: function(data){
                       //$example.select2("destroy");
                       $('#uso_factura_id-field').html('');
-                      
+
                       //$('#especialidad_id-field').empty();
                       $('#uso_factura_id-field').append($('<option></option>').text('Seleccionar').val('0'));
-                      
+
                       $.each(data, function(i) {
                           //alert(data[i].name);
                           $('#uso_factura_id-field').append("<option "+data[i].selectec+" value=\""+data[i].id+"\">"+data[i].name+"<\/option>");
@@ -186,7 +204,7 @@ $(document).ready(function(){
                   }
               });
     }
-    
+
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let tipo_persona=$("#tipo_persona_id-field option:selected").text();
@@ -234,7 +252,8 @@ $(document).ready(function(){
             },
             callback: function(result) {
                 if(result){
-                    //$('#frm_multipagos').attr("action", data.datos.url_peticion);
+                    //$('#frm_multipagos').attr("action", url_metodo);
+                    console.log($('#frm'));
                     $('#frm').submit();
                 }
 

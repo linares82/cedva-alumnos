@@ -25,3 +25,4 @@ Route::post(
     )
 )->middleware('corsMultipagos');
 
+

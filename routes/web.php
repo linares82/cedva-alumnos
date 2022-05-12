@@ -113,6 +113,14 @@ Route::post(
         'uses' => 'FichaPagosController@confirmarFactura'
     )
 )->middleware('auth');
+Route::post(
+    '/fichaAdeudos/confirmarFactura40/{id}',
+    array(
+        'as' => 'fichaAdeudos.confirmarFactura40',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@confirmarFactura40'
+    )
+)->middleware('auth');
 Route::get(
     '/fichaAdeudos/datosFiscales',
     array(
@@ -147,11 +155,27 @@ Route::get(
     )
 )->middleware('auth');
 Route::get(
+    '/fichaAdeudos/getFacturaXmlByUuid40',
+    array(
+        'as' => 'fichaAdeudos.getFacturaXmlByUuid40',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@getFacturaXmlByUuid40'
+    )
+)->middleware('auth');
+Route::get(
     '/fichaAdeudos/getFacturaPdfByUuid',
     array(
         'as' => 'fichaAdeudos.getFacturaPdfByUuid',
         //'middleware' => 'permission:users.updatePerfil',
         'uses' => 'FichaPagosController@getFacturaPdfByUuid'
+    )
+)->middleware('auth');
+Route::get(
+    '/fichaAdeudos/getFacturaPdfByUuid40',
+    array(
+        'as' => 'fichaAdeudos.getFacturaPdfByUuid40',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@getFacturaPdfByUuid40'
     )
 )->middleware('auth');
 Route::get(
