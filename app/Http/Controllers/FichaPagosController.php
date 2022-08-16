@@ -8,6 +8,7 @@ use App\Pago;
 use App\User;
 use App\Param;
 use Exception;
+use XMLWriter;
 use App\Adeudo;
 use App\CajaLn;
 use SoapClient;
@@ -23,6 +24,7 @@ use App\PromoPlanLn;
 use App\TipoPersona;
 use SimpleXMLElement;
 use App\RegimenFiscal;
+use GuzzleHttp\Client;
 use App\CuentasEfectivo;
 use App\ImpresionTicket;
 use App\AdeudoPagoOnLine;
@@ -33,12 +35,12 @@ use App\PeticionMultipago;
 use App\CombinacionCliente;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+
 use App\SerieFolioSimplificado;
 use Illuminate\Support\Facades\DB;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-
 use Illuminate\Support\Facades\Session;
 use Luecano\NumeroALetras\NumeroALetras;
 use Illuminate\Support\Facades\Notification;
@@ -993,7 +995,7 @@ class FichaPagosController extends Controller
         $adeudo_pago_on_line = $adeudoPagoOnLine->id;
         $usoFactura = UsoFactura::select('id', DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name', 'id');
         $regimenFiscal = RegimenFiscal::select('id', DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name', 'id');
-        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line', 'usoFactura','regimenFiscal'));
+        return view('fichaPagos.datos_factura', compact('cliente', 'tipoPersonas', 'adeudo_pago_on_line', 'usoFactura', 'regimenFiscal'));
     }
 
     public function confirmarFactura(Request $request, $id)
@@ -1398,7 +1400,21 @@ class FichaPagosController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            echo $e->getMessage();
+            $destinatario = "linares82@gmail.com";
+            $n = Auth::user()->name;
+            $asunto = "Problema Folios Digitales error try catch";
+            $contenido = $e->getMessage();
+            $from = "ohpelayo@gmail.com";
+
+            //dd(env('MAIL_FROM_ADDRESS'));
+
+            $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
+            $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
+            use ($asunto, $destinatario, $n, $from) {
+                $message->from(env('MAIL_FROM_ADDRESS', 'hola@grupocedva.com'), env('MAIL_FROM_NAME', 'Grupo CEDVA'));
+                $message->to($destinatario, $n)->subject($asunto);
+                $message->replyTo($from);
+            });
             dd($e->getMessage());
         }
         return redirect()->route('fichaAdeudos.index');
@@ -1581,7 +1597,7 @@ class FichaPagosController extends Controller
         $usoFactura = UsoFactura::select('id', DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name', 'id');
         $regimenFiscal = RegimenFiscal::select('id', DB::raw('concat(clave,"-",descripcion) as name'))->pluck('name', 'id');
         //$adeudo_pago_on_line = $adeudoPagoOnLine->id;
-        return view('fichaPagos.datos_fiscales', compact('cliente', 'tipoPersonas', 'usoFactura','regimenFiscal'));
+        return view('fichaPagos.datos_fiscales', compact('cliente', 'tipoPersonas', 'usoFactura', 'regimenFiscal'));
     }
 
     public function confirmarDatosFiscales(Request $request, $id)
@@ -1773,49 +1789,31 @@ class FichaPagosController extends Controller
         $cliente->update($datos);
         $plantel = $adeudoPagoOnLine->cliente->plantel;
         $pago = $adeudoPagoOnLine->pago;
+        $serie_folio = explode("-", $pago->csc_simplificado);
+        if(is_null($pago->csc_simplificado)){
+            dd("problema con el consecutivo simplificado");
+        }
         $caja = $adeudoPagoOnLine->caja;
         //dd($caja->toArray());
         $fecha_anio = Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->year;
+
         //Parametros para el webservice
-        $parametroUrl=Param::where('llave', 'webServiceFacturacion')->first();
-        $parametroFactPrbActiva=Param::where('llave', 'fact_prb_activa')->first();
+        $parametroUrl = Param::where('llave', 'fact_global_url')->first();
+        $parametroFactPrbActiva = Param::where('llave', 'fact_prb_activa')->first();
         $url = $parametroUrl->valor;
-        $cuenta = $plantel->fcuenta;
-        $password = $plantel->fpassword;
-        $usuario = $plantel->fusuario;
-        if ($parametroFactPrbActiva->valor == 1) {
-            $parametroUrl=Param::where('llave', 'test_api_facturacion')->first();
-            $parametroCuenta=Param::where('llave', 'prb_cuentaFacturacion')->first();
-            $parametroUsuario=Param::where('llave', 'prb_usuarioFacturacion')->first();
-            $parametroPass=Param::where('llave', 'prb_passwordFacturacion')->first();
-            $url = $parametroUrl->valor;
-            $cuenta = $parametroCuenta->valor;
-            $password = $parametroPass->valor;
-            $usuario = $parametroUsuario->valor;
+        //dd($url);
+        $cuenta = $plantel->matriz->fact_gobal_id_cuenta;
+        $cuenta_password = $plantel->matriz->fact_global_pass_cuenta;
+        if($parametroFactPrbActiva->valor==2){
+            $p_cuenta=Param::where('llave','fact_global_id_cuenta_prb')->first();
+            $p_cuenta_password=Param::where('llave','fact_global_pass_cuenta_prb')->first();
+            $cuenta=$p_cuenta->valor;
+            $cuenta_password=$p_cuenta_password->valor;
         }
-        //dd($url . " - " . $usuario . " - " . $cuenta . " - " . $password);
-        //dd('fil');
-        //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
-        //$password = Param::where('llave', 'passwordFacturacion')->first();
-        //$usuario = Param::where('llave', 'usuarioFacturacion')->first();
 
+        
         try {
-            $opts = array(
-                'http' => array(
-                    'user_agent' => 'PHPSoapClient'
-                )
-            );
-            $context = stream_context_create($opts);
-
-            $wsdlUrl = $url;
-            $soapClientOptions = array(
-                'stream_context' => $context,
-                'cache_wsdl' => WSDL_CACHE_NONE
-            );
-
-            $client = new SoapClient($wsdlUrl, $soapClientOptions);
-
-            //dd($client->__getFunctions());
+            
             $fecha_solicitud_factura_tabla = date('Y-m-d H:i:s');
             $fecha_solicitud_factura_service = date('Y-m-d\TH:i:s');
 
@@ -1835,289 +1833,28 @@ class FichaPagosController extends Controller
                 is_null($grado->fec_rvoe) or $grado->fec_rvoe == "" or
                 is_null($grado->rvoe) or $grado->rvoe == ""
             ) {
-                dd("Uno o más datos no estan definidos en el grado con id:" . $grado->id);
+                dd("Verificar nivel educativo sat, clave servicio, seccion, fecha RVOE o RVOE en el grado con id:" . $grado->id);
             }
 
             $objetosArray = array();
+            //dd($adeudo->combinacionCliente->grado_id);
+            if ($adeudo->combinacionCliente->grado->clave_servicio == "86121600") {
+                $descripcion=$caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio;
+                /*$objetosArray = array(
 
-            if ($parametroFactPrbActiva->valor==0) {
-
-                if ($adeudo->combinacionCliente->grado->clave_servicio == "86121600") {
-                    $objetosArray = array(
-                        'credenciales' => array(
-                            'Cuenta' => $cuenta,
-                            'Password' => $password,
-                            'Usuario' => $usuario
-                        ),
-                        'cfdi' => array(
-                            'Addenda' => array(
-                                /*'DomicilioEmisor' => array(
-                                    'Calle' => $plantel->matriz->calle,
-                                    'CodigoPostal' => $plantel->matriz->cp,
-                                    'Colonia' => $plantel->matriz->colonia,
-                                    'Estado' => $plantel->matriz->estado,
-                                    //'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $plantel->matriz->municipio,
-                                    'NombreCliente' => $plantel->matriz->nombre_corto,
-                                    'NumeroExterior' => $plantel->matriz->no_ext,
-                                    'NumeroInterior' => $plantel->matriz->no_int,
-                                    'Pais' => 'Mexico',
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                ),*/
-                                'DomicilioEmisor' => array(
-                                    'Calle' => $plantel->calle,
-                                    'CodigoPostal' => $plantel->cp,
-                                    'Colonia' => $plantel->colonia,
-                                    'Estado' => $plantel->estado,
-                                    //'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $plantel->municipio,
-                                    'NombreCliente' => $plantel->nombre_corto,
-                                    'NumeroExterior' => $plantel->no_ext,
-                                    'NumeroInterior' => $plantel->no_int,
-                                    'Pais' => 'Mexico',
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                ),
-                                'DomicilioReceptor' => array(
-                                    'Calle' => $cliente->fcalle,
-                                    'CodigoPostal' => $cliente->fcp,
-                                    'Colonia' => $cliente->fcolonia,
-                                    'Estado' => $cliente->festado,
-                                    'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $cliente->fmunicipio,
-                                    'NombreCliente' => $cliente->fno_interior,
-                                    'NumeroExterior' => $cliente->fno_exterior,
-                                    'NumeroInterior' => $cliente->fno_interior,
-                                    'Pais' => $cliente->fpais,
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                )/*,
-                                'DomicilioSucursal' => array(
-                                    'Calle' => $plantel->calle,
-                                    'CodigoPostal' => $plantel->cp,
-                                    'Colonia' => $plantel->colonia,
-                                    'Estado' => $plantel->estado,
-                                    //'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $plantel->municipio,
-                                    'NombreCliente' => $plantel->nombre_corto,
-                                    'NumeroExterior' => $plantel->no_ext,
-                                    'NumeroInterior' => $plantel->no_int,
-                                    'Pais' => 'Mexico',
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                ),*/
-                            ),
-                            'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
-                            'Exportacion' => "01", //Campo Nuevo
-                            //Plantel emisor de factura
-                            'Emisor' => array(
-                                'Nombre' => $cliente->plantel->nombre_corto,
-                                'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
-                            ),
-                            //Cliente
-                            'Receptor' => array(
-                                'DomicilioFiscalReceptor'=> $cliente->fcp, //Atributo nuevo ->fcp
-                                'Nombre' => $cliente->frazon,
-                                'RegimenFiscalReceptor'=>$cliente->regimenFiscal->clave, //Dato nuevo
-                                'Rfc' => $cliente->frfc, //'TEST010203001',
-                                'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
-                            ),
-                            //'CondicionesDePago' => 'CONDICIONES', //opcional
-                            'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
-                            'Fecha' => $fecha_solicitud_factura_service,
-                            'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
-                            'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
-                            'Moneda' => 'MXN', //Default
-                            'Referencia' => $pago->csc_simplificado,  //Definir valor
-                            'Conceptos' => array('Concepto40R' => array(
-                                'Cantidad' => '1',
-                                'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
-                                'ClaveUnidad' => 'E48',
-                                'Unidad' => 'Servicio', //Definir valor default
-                                'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio,
-                                'ObjetoImp'=> "01", //Campo nuevo
-                                /*'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
-                                    'Base' => number_format($total_pagos, 2, '.', ''),
-                                    //'Importe' => '0.00',
-                                    'Impuesto' => '002',
-                                    //'TasaOCuota' => '0.000000',
-                                    'TipoFactor' => 'Exento'
-                                ),),),*/
-                                'InstEducativas' => array(
-                                    'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
-                                    'CURP' => $cliente->curp,
-                                    'NivelEducativo' => $nivelEducativoSat->name,
-                                    'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
-                                    'RfcPago' => $cliente->frfc
-                                ),
-                                //'NoIdentificacion' => '00003', //Opcional
-                                'Importe' => number_format($total_pagos, 2, '.', ''),
-                                'ValorUnitario' => number_format($total_pagos, 2, '.', '')
-                            ),),
-                            'SubTotal' => number_format($total_pagos, 2, '.', ''),
-                            'Total' => number_format($total_pagos, 2, '.', '')
-                        )
-                    );
-                } elseif ($adeudo->combinacionCliente->grado->clave_servicio == "86121700") {
-                    $objetosArray = array(
-                        'credenciales' => array(
-                            'Cuenta' => $cuenta,
-                            'Password' => $password,
-                            'Usuario' => $usuario
-                        ),
-                        'cfdi' => array(
-                            'Addenda' => array(
-                                /*'DomicilioEmisor' => array(
-                                    'Calle' => $plantel->matriz->calle,
-                                    'CodigoPostal' => $plantel->matriz->cp,
-                                    'Colonia' => $plantel->matriz->colonia,
-                                    'Estado' => $plantel->matriz->estado,
-                                    //'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $plantel->matriz->municipio,
-                                    'NombreCliente' => $plantel->matriz->nombre_corto,
-                                    'NumeroExterior' => $plantel->matriz->no_ext,
-                                    'NumeroInterior' => $plantel->matriz->no_int,
-                                    'Pais' => 'Mexico',
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                ),*/
-                                'DomicilioEmisor' => array(
-                                    'Calle' => $plantel->calle,
-                                    'CodigoPostal' => $plantel->cp,
-                                    'Colonia' => $plantel->colonia,
-                                    'Estado' => $plantel->estado,
-                                    //'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $plantel->municipio,
-                                    'NombreCliente' => $plantel->nombre_corto,
-                                    'NumeroExterior' => $plantel->no_ext,
-                                    'NumeroInterior' => $plantel->no_int,
-                                    'Pais' => 'Mexico',
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                ),
-                                'DomicilioReceptor' => array(
-                                    'Calle' => $cliente->fcalle,
-                                    'CodigoPostal' => $cliente->fcp,
-                                    'Colonia' => $cliente->fcolonia,
-                                    'Estado' => $cliente->festado,
-                                    'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $cliente->fmunicipio,
-                                    'NombreCliente' => $cliente->fno_interior,
-                                    'NumeroExterior' => $cliente->fno_exterior,
-                                    'NumeroInterior' => $cliente->fno_interior,
-                                    'Pais' => $cliente->fpais,
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                )/*,
-                                'DomicilioSucursal' => array(
-                                    'Calle' => $plantel->calle,
-                                    'CodigoPostal' => $plantel->cp,
-                                    'Colonia' => $plantel->colonia,
-                                    'Estado' => $plantel->estado,
-                                    //'Localidad' => $cliente->flocalidad,
-                                    'Municipio' => $plantel->municipio,
-                                    'NombreCliente' => $plantel->nombre_corto,
-                                    'NumeroExterior' => $plantel->no_ext,
-                                    'NumeroInterior' => $plantel->no_int,
-                                    'Pais' => 'Mexico',
-                                    //'Referencia'=>$cliente->,
-                                    //'Telefono'=>
-                                ),*/
-                            ),
-                            'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
-                            'Exportacion' => "01", //Campo Nuevo
-                            //Plantel emisor de factura
-                            'Emisor' => array(
-                                'Nombre' => $cliente->plantel->nombre_corto,
-                                'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
-                            ),
-                            //Cliente
-                            'Receptor' => array(
-                                'DomicilioFiscalReceptor'=> $cliente->fcp, //Atributo nuevo ->fcp
-                                'Nombre' => $cliente->frazon,
-                                'RegimenFiscalReceptor'=>$cliente->regimenFiscal->clave, //Dato nuevo
-                                'Rfc' => $cliente->frfc, //'TEST010203001',
-                                'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
-                            ),
-                            //'CondicionesDePago' => 'CONDICIONES', //opcional
-                            'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
-                            'Fecha' => $fecha_solicitud_factura_service,
-                            'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
-                            'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
-                            'Moneda' => 'MXN', //Default
-                            'Referencia' => $pago->csc_simplificado,  //Definir valor
-                            'Conceptos' => array('Concepto40R' => array(
-                                'Cantidad' => '1',
-                                'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
-                                'ClaveUnidad' => 'E48',
-                                'Unidad' => 'Servicio', //Definir valor default
-                                'Descripcion' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno . PHP_EOL .
-                                    $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio . PHP_EOL .
-                                    $adeudo->combinacionCliente->grado->name . PHP_EOL .
-                                    "CURP: " . $cliente->curp . PHP_EOL .
-                                    "RVOE: " . $adeudo->combinacionCliente->grado->rvoe,
-                                'ObjetoImp'=> "01", //Campo nuevo
-                                /*'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
-                                    'Base' => number_format($total_pagos, 2, '.', ''),
-                                    //'Importe' => '0.00',
-                                    'Impuesto' => '002',
-                                    //'TasaOCuota' => '0.000000',
-                                    'TipoFactor' => 'Exento'
-                                ),),),*/
-                                /*'InstEducativas' => array(
-                                    'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
-                                    'CURP' => $cliente->curp,
-                                    'NivelEducativo' => $nivelEducativoSat->name,
-                                    'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
-                                    'RfcPago' => $cliente->frfc
-                                ),*/
-                                //'NoIdentificacion' => '00003', //Opcional
-                                'Importe' => number_format($total_pagos, 2, '.', ''),
-                                'ValorUnitario' => number_format($total_pagos, 2, '.', '')
-                            ),),
-                            'SubTotal' => number_format($total_pagos, 2, '.', ''),
-                            'Total' => number_format($total_pagos, 2, '.', '')
-                        )
-                    );
-                }
-            } else {
-                $objetosArray = array(
-                    'credenciales' => array(
-                        'Cuenta' => $cuenta,
-                        'Password' => $password,
-                        'Usuario' => $usuario
-                    ),
                     'cfdi' => array(
-
                         'Addenda' => array(
-                            /*'DomicilioEmisor' => array(
-                                'Calle' => $plantel->matriz->calle,
-                                'CodigoPostal' => $plantel->matriz->cp,
-                                'Colonia' => $plantel->matriz->colonia,
-                                'Estado' => $plantel->matriz->estado,
-                                //'Localidad' => $cliente->flocalidad,
-                                'Municipio' => $plantel->matriz->municipio,
-                                'NombreCliente' => $plantel->matriz->nombre_corto,
-                                'NumeroExterior' => $plantel->matriz->no_ext,
-                                'NumeroInterior' => $plantel->matriz->no_int,
-                                'Pais' => 'Mexico',
-                                //'Referencia'=>$cliente->,
-                                //'Telefono'=>
-                            ),*/
+
                             'DomicilioEmisor' => array(
                                 'Calle' => $plantel->calle,
                                 'CodigoPostal' => $plantel->cp,
                                 'Colonia' => $plantel->colonia,
                                 'Estado' => $plantel->estado,
-                                //'Localidad' => $cliente->flocalidad,
                                 'Municipio' => $plantel->municipio,
                                 'NombreCliente' => $plantel->nombre_corto,
                                 'NumeroExterior' => $plantel->no_ext,
                                 'NumeroInterior' => $plantel->no_int,
                                 'Pais' => 'Mexico',
-                                //'Referencia'=>$cliente->,
-                                //'Telefono'=>
                             ),
                             'DomicilioReceptor' => array(
                                 'Calle' => $cliente->fcalle,
@@ -2130,38 +1867,22 @@ class FichaPagosController extends Controller
                                 'NumeroExterior' => $cliente->fno_exterior,
                                 'NumeroInterior' => $cliente->fno_interior,
                                 'Pais' => $cliente->fpais,
-                                //'Referencia'=>$cliente->,
-                                //'Telefono'=>
-                            )/*,
-                            'DomicilioSucursal' => array(
-                                'Calle' => $plantel->calle,
-                                'CodigoPostal' => $plantel->cp,
-                                'Colonia' => $plantel->colonia,
-                                'Estado' => $plantel->estado,
-                                //'Localidad' => $cliente->flocalidad,
-                                'Municipio' => $plantel->municipio,
-                                'NombreCliente' => $plantel->nombre_corto,
-                                'NumeroExterior' => $plantel->no_ext,
-                                'NumeroInterior' => $plantel->no_int,
-                                'Pais' => 'Mexico',
-                                //'Referencia'=>$cliente->,
-                                //'Telefono'=>
-                            ),*/
+                            )
                         ),
                         'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
-                        //'TipoDeComprobante'=>'I', //Campo nuevo no existe en doc
                         'Exportacion' => "01", //Campo Nuevo
                         //Plantel emisor de factura
                         'Emisor' => array(
-                            'Nombre' => 'Compuhipermegared',//$cliente->plantel->nombre_corto,
+                            'Nombre' => $cliente->plantel->nombre_corto,
                             'RegimenFiscal' => $cliente->plantel->regimen_fiscal, //Campo nuevo en planteles
+                            'Rfc' => $cliente->plantel->matriz->rfc,
                         ),
                         //Cliente
                         'Receptor' => array(
-                            'DomicilioFiscalReceptor'=> $cliente->fcp, //Atributo nuevo ->fcp
-                            'Nombre' => 'Pablo Neruda Perez',//$cliente->frazon,
-                            'RegimenFiscalReceptor'=>$cliente->regimenFiscal->clave, //Dato nuevo
-                            'Rfc' => 'TEST010203001', //'TEST010203001',
+                            'DomicilioFiscalReceptor' => $cliente->fcp, //Atributo nuevo ->fcp
+                            'Nombre' => $cliente->frazon,
+                            'RegimenFiscalReceptor' => $cliente->regimenFiscal->clave, //Dato nuevo
+                            'Rfc' => $cliente->frfc, //'TEST010203001',
                             'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
                         ),
                         //'CondicionesDePago' => 'CONDICIONES', //opcional
@@ -2171,24 +1892,26 @@ class FichaPagosController extends Controller
                         'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
                         'Moneda' => 'MXN', //Default
                         'Referencia' => $pago->csc_simplificado,  //Definir valor
+                        'Serie' => $serie_folio[0],
+                        'Folio' => $serie_folio[1],
+                        'TipoDeComprobante' => 'I',
+                        'Serie' => $serie_folio[0],
+                        'Folio' => $serie_folio[1],
                         'Conceptos' => array('Concepto40R' => array(
                             'Cantidad' => '1',
                             'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
                             'ClaveUnidad' => 'E48',
+                            'NoIdentificacion'=>$caja->cajaLn->caja_concepto_id,
                             'Unidad' => 'Servicio', //Definir valor default
-                            'Descripcion' => $cliente->nombre . ' ' . $cliente->nombre2 . ' ' . $cliente->ape_paterno . ' ' . $cliente->ape_materno . PHP_EOL .
-                                $caja->cajaLn->cajaConcepto->leyenda_factura . ' ' . $fecha_anio . PHP_EOL .
-                                $adeudo->combinacionCliente->grado->name . PHP_EOL .
-                                'CURP: ' . $cliente->curp . PHP_EOL .
-                                'RVOE: ' . $adeudo->combinacionCliente->grado->rvoe,
-                            'ObjetoImp'=> "01", //Campo nuevo
-                            /*'Impuestos' => array('Traslados' => array('TrasladoConcepto40R' => array( //no se manejan impuestos
+                            'Descripcion' => $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio,
+                            'ObjetoImp' => "02", //Campo nuevo
+                            'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
                                 'Base' => number_format($total_pagos, 2, '.', ''),
-                                'Importe' => '0.00',
+                                //'Importe' => '0.00',
                                 'Impuesto' => '002',
-                                'TasaOCuota' => '0.000000',
+                                //'TasaOCuota' => '0.000000',
                                 'TipoFactor' => 'Exento'
-                            ),),),*/
+                            ),),),
                             'InstEducativas' => array(
                                 'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
                                 'CURP' => $cliente->curp,
@@ -2203,250 +1926,680 @@ class FichaPagosController extends Controller
                         'SubTotal' => number_format($total_pagos, 2, '.', ''),
                         'Total' => number_format($total_pagos, 2, '.', '')
                     )
-                );
-            }
-
-            Log::info($objetosArray);
-            //dd($objetosArray);
-            $result = $client->GenerarCFDI40($objetosArray)->GenerarCFDI40Result;
-            Log::info($result->ErrorDetallado);
-            //dd($result);
-            if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
-
-                Session::flash('error', $result->ErrorGeneral);
-
-                $message = new Message;
-                $message->setAttribute('user_id', Auth::user()->id);
-                //$message->setAttribute('code_error', 1);
-                $message->setAttribute('mensaje', $result->ErrorDetallado . " - " . $result->ErrorGeneral);
-                $message->save();
-
-                Log::info("Mensaje de error api folios digitales facturacion: " . $result->ErrorGeneral);
-
-                /*Notificacion no envia
-                $toUser1 = User::find(1);
-                $toUser2 = User::find(3);
-
-                // send notification using the "Notification" facade
-                Notification::send($toUser1, new NotificacionErrorApiFoliosDigitales($toUser2));
-                */
-
-                $destinatario = "linares82@gmail.com";
-                $n = Auth::user()->name;
-                $asunto = "Problema Folios Digitales";
-                $contenido = $message->mensaje . " fecha y hora: " . $message->created_at;
-                $from = "ohpelayo@gmail.com";
-
-                //dd(env('MAIL_FROM_ADDRESS'));
-
-                $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
-                $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
-                use ($asunto, $destinatario, $n, $from) {
-                    $message->from(env('MAIL_FROM_ADDRESS', 'hola@grupocedva.com'), env('MAIL_FROM_NAME', 'Grupo CEDVA'));
-                    $message->to($destinatario, $n)->subject($asunto);
-                    $message->replyTo($from);
-                });
-
-                return back();
-            } elseif ($result->OperacionExitosa == true) {
-                /*
-                $p = xml_parser_create();
-                xml_parse_into_struct($p, $result->XML, $vals, $index);
-                xml_parser_free($p);
-                dd($vals);
-                */
-                //dd($result);
-                $xmlArray = $this->xmlstr_to_array($result->XML);
-                //dd($xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"]);
-                $pagos1 = Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
-                //dd($pagos->toArray());
-                $folio = ++$plantel->folio_facturados;
-                $plantel->save();
-                foreach ($pagos1 as $pago1) {
-                    $pago1->uuid = $xmlArray["cfdi:Complemento"]["tfd:TimbreFiscalDigital"]["@attributes"]["UUID"];
-                    $pago1->cbb = $result->CBB;
-                    $pago1->xml = $result->XML;
-                    $pago1->fecha_solicitud_factura = $fecha_solicitud_factura_tabla;
-                    $pago1->serie_factura = $plantel->serie_factura;
-                    $pago1->folio_facturados = $folio;
-
-                    $pago1->save();
-
-                    //Envio de correo por parte del proveedor
-
-                    $objetoArray = array(
-                        'credenciales' => array(
-                            'Cuenta' => $plantel->fcuenta,
-                            'Password' => $plantel->fpassword,
-                            'Usuario' => $plantel->fusuario
+                );*/
+            } elseif ($adeudo->combinacionCliente->grado->clave_servicio == "86121700") {
+                $descripcion=$cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno . PHP_EOL .
+                $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio . PHP_EOL .
+                $adeudo->combinacionCliente->grado->name . PHP_EOL .
+                "CURP: " . $cliente->curp . PHP_EOL .
+                "RVOE: " . $adeudo->combinacionCliente->grado->rvoe;
+                /*$objetosArray = array(
+                    'cfdi' => array(
+                        'Addenda' => array(
+                            'DomicilioEmisor' => array(
+                                'Calle' => $plantel->calle,
+                                'CodigoPostal' => $plantel->cp,
+                                'Colonia' => $plantel->colonia,
+                                'Estado' => $plantel->estado,
+                                'Municipio' => $plantel->municipio,
+                                'NombreCliente' => $plantel->nombre_corto,
+                                'NumeroExterior' => $plantel->no_ext,
+                                'NumeroInterior' => $plantel->no_int,
+                                'Pais' => 'Mexico',
+                            ),
+                            'DomicilioReceptor' => array(
+                                'Calle' => $cliente->fcalle,
+                                'CodigoPostal' => $cliente->fcp,
+                                'Colonia' => $cliente->fcolonia,
+                                'Estado' => $cliente->festado,
+                                'Localidad' => $cliente->flocalidad,
+                                'Municipio' => $cliente->fmunicipio,
+                                'NombreCliente' => $cliente->fno_interior,
+                                'NumeroExterior' => $cliente->fno_exterior,
+                                'NumeroInterior' => $cliente->fno_interior,
+                                'Pais' => $cliente->fpais,
+                            )
                         ),
-                        'uuid' => $pago1->uuid,
-                        'email' => $cliente->fmail,
-                        'titulo' => "Factura " . $plantel->nombre_corto,
-                        'mensaje' => "",
-                    );
-                    Log::info('uuid:' . $pago1->uuid .
-                        ' email:' . $cliente->fmail .
-                        ' titulo:' . "Factura " . $plantel->nombre_corto .
-                        ' mensaje:' . "");
-                    $result = $client->EnviarCFDI($objetoArray)->EnviarCFDIResult;
-                    if (!is_null($result->ErrorDetallado) and $result->ErrorDetallado <> "" and $result->OperacionExitosa <> true) {
-                        Session::flash('error', $result->ErrorGeneral);
-                        return back();
+                        'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
+                        'Exportacion' => "01", //Campo Nuevo
+                        //Plantel emisor de factura
+                        'Emisor' => array(
+                            'Nombre' => $cliente->plantel->matriz->nombre_corto,
+                            'RegimenFiscal' => $cliente->plantel->matriz->regimen_fiscal, //Campo nuevo en planteles
+                            'Rfc' => $cliente->plantel->matriz->rfc,
+                        ),
+                        //Cliente
+                        'Receptor' => array(
+                            'DomicilioFiscalReceptor' => $cliente->fcp, //Atributo nuevo ->fcp
+                            'Nombre' => $cliente->frazon,
+                            'RegimenFiscalReceptor' => $cliente->regimenFiscal->clave, //Dato nuevo
+                            'Rfc' => $cliente->frfc, //'TEST010203001',
+                            'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                        ),
+                        //'CondicionesDePago' => 'CONDICIONES', //opcional
+                        'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
+                        'Fecha' => $fecha_solicitud_factura_service,
+                        'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
+                        'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
+                        'Moneda' => 'MXN', //Default
+                        'Referencia' => $pago->csc_simplificado,  //Definir valor
+                        'Serie' => $serie_folio[0],
+                        'Folio' => $serie_folio[1],
+                        'TipoDeComprobante' => 'I',
+                        'Conceptos' => array('Concepto40R' => array(
+                            'Cantidad' => '1',
+                            'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
+                            'ClaveUnidad' => 'E48',
+                            'NoIdentificacion'=>$caja->cajaLn->caja_concepto_id,
+                            'Unidad' => 'Servicio', //Definir valor default
+                            'Descripcion' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno . PHP_EOL .
+                                $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio . PHP_EOL .
+                                $adeudo->combinacionCliente->grado->name . PHP_EOL .
+                                "CURP: " . $cliente->curp . PHP_EOL .
+                                "RVOE: " . $adeudo->combinacionCliente->grado->rvoe,
+                            'ObjetoImp' => "02", //Campo nuevo
+                            'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
+                                'Base' => number_format($total_pagos, 2, '.', ''),
+                                //'Importe' => '0.00',
+                                'Impuesto' => '002',
+                                //'TasaOCuota' => '0.000000',
+                                'TipoFactor' => 'Exento'
+                            ),),),
+                            'InstEducativas' => array(
+                                'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
+                                'CURP' => $cliente->curp,
+                                'NivelEducativo' => $nivelEducativoSat->name,
+                                'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
+                                'RfcPago' => $cliente->frfc
+                            ),
+                            //'NoIdentificacion' => '00003', //Opcional
+                            'Importe' => number_format($total_pagos, 2, '.', ''),
+                            'ValorUnitario' => number_format($total_pagos, 2, '.', '')
+                        ),),
+                        'SubTotal' => number_format($total_pagos, 2, '.', ''),
+                        'Total' => number_format($total_pagos, 2, '.', '')
+                    )
+                );*/
+            }
+            $objetosArray = array(
+                'cfdi' => array(
+                    'Addenda' => array(
+                        'DomicilioEmisor' => array(
+                            'Calle' => $plantel->calle,
+                            'CodigoPostal' => $plantel->cp,
+                            'Colonia' => $plantel->colonia,
+                            'Estado' => $plantel->estado,
+                            'Municipio' => $plantel->municipio,
+                            'NombreCliente' => $plantel->nombre_corto,
+                            'NumeroExterior' => $plantel->no_ext,
+                            'NumeroInterior' => $plantel->no_int,
+                            'Pais' => 'Mexico',
+                        ),
+                        'DomicilioReceptor' => array(
+                            'Calle' => $cliente->fcalle,
+                            'CodigoPostal' => $cliente->fcp,
+                            'Colonia' => $cliente->fcolonia,
+                            'Estado' => $cliente->festado,
+                            'Localidad' => $cliente->flocalidad,
+                            'Municipio' => $cliente->fmunicipio,
+                            'NombreCliente' => $cliente->fno_interior,
+                            'NumeroExterior' => $cliente->fno_exterior,
+                            'NumeroInterior' => $cliente->fno_interior,
+                            'Pais' => $cliente->fpais,
+                        )
+                    ),
+                    'ClaveCFDI' => 'FAC', //Requerido valor default para ingresos segun documento tecnico del proveedor
+                    'Exportacion' => "01", //Campo Nuevo
+                    //Plantel emisor de factura
+                    'Emisor' => array(
+                        'Nombre' => $cliente->plantel->matriz->nombre_corto,
+                        'RegimenFiscal' => $cliente->plantel->matriz->regimen_fiscal, //Campo nuevo en planteles
+                        'Rfc' => $cliente->plantel->matriz->rfc,
+                    ),
+                    //Cliente
+                    'Receptor' => array(
+                        'DomicilioFiscalReceptor' => $cliente->fcp, //Atributo nuevo ->fcp
+                        'Nombre' => $cliente->frazon,
+                        'RegimenFiscalReceptor' => $cliente->regimenFiscal->clave, //Dato nuevo
+                        'Rfc' => $cliente->frfc, //'TEST010203001',
+                        'UsoCFDI' => $cliente->usoFactura->clave //$adeudo->cajaConcepto->uso_factura, //campo nuevo en conceptos de caja, Definir valor Default de acuerdo al SAT
+                    ),
+                    'CondicionesDePago' => 'CONTADO', //opcional
+                    'FormaPago' => $pago->formaPago->cve_sat, //No es Opcional Documentacion erronea, llenar en tabla campo nuevo
+                    'Fecha' => $fecha_solicitud_factura_service,
+                    'MetodoPago' => 'PUE', //No es Opcional Documentacion erronea, Definir default segun catalogo del SAT
+                    'LugarExpedicion' => $cliente->plantel->cp, //CP del plantel, debe ser valido segun catalogo del SAT
+                    'Moneda' => 'MXN', //Default
+                    'Referencia' => $pago->csc_simplificado,  //Definir valor
+                    'Serie' => $serie_folio[0],
+                    'Folio' => $serie_folio[1],
+                    'TipoDeComprobante' => 'I',
+                    'Conceptos' => array('Concepto40R' => array(
+                        'Cantidad' => '1',
+                        'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
+                        'ClaveUnidad' => 'E48',
+                        'NoIdentificacion'=>$caja->cajaLn->caja_concepto_id,
+                        'Unidad' => 'Servicio', //Definir valor default
+                        'Descripcion' => $descripcion,
+                        'ObjetoImp' => "02", //Campo nuevo
+                        'Impuestos' => array('Traslados' => array('TrasladoConceptoR' => array( //no se manejan impuestos
+                            'Base' => number_format($total_pagos, 2, '.', ''),
+                            //'Importe' => '0.00',
+                            'Impuesto' => '002',
+                            //'TasaOCuota' => '0.000000',
+                            'TipoFactor' => 'Exento'
+                        ),),),
+                        'InstEducativas' => array(
+                            'AutRVOE' => $adeudo->combinacionCliente->grado->rvoe,
+                            'CURP' => $cliente->curp,
+                            'NivelEducativo' => $nivelEducativoSat->name,
+                            'NombreAlumno' => $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno,
+                            'RfcPago' => $cliente->frfc
+                        ),
+                        //'NoIdentificacion' => '00003', //Opcional
+                        'Importe' => number_format($total_pagos, 2, '.', ''),
+                        'ValorUnitario' => number_format($total_pagos, 2, '.', '')
+                    ),),
+                    'SubTotal' => number_format($total_pagos, 2, '.', ''),
+                    'Total' => number_format($total_pagos, 2, '.', '')
+                )
+                );
+
+            //dd($objetosArray);
+
+            $comprobante = array(
+                'Version' => '4.0',
+                'xmlns:xsi' => 'http://www.w3.org/2001/XMLSchema-instance',
+                'xmlns:cfdi' => 'http://www.sat.gob.mx/cfd/4',
+                'xmlns:iedu' => "http://www.sat.gob.mx/iedu",
+                'xsi:schemaLocation' => 'http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/iedu http://www.sat.gob.mx/sitio_internet/cfd/iedu/iedu.xsd',
+                'Certificado' => '', //?
+                'NoCertificado' => '', //?
+                'Serie' => $objetosArray['cfdi']['Serie'], //?
+                'Folio' => $objetosArray['cfdi']['Folio'], //?
+                'Fecha' => $objetosArray['cfdi']['Fecha'],
+                'Sello' => '',
+                'FormaPago' => $objetosArray['cfdi']['FormaPago'],
+                'CondicionesDePago' => 'CONTADO',
+                'TipoCambio'=>1,
+                'SubTotal' => $objetosArray['cfdi']['SubTotal'],
+                'Moneda' => $objetosArray['cfdi']['Moneda'],
+                'Total' => $objetosArray['cfdi']['Total'],
+                'TipoDeComprobante' => $objetosArray['cfdi']['TipoDeComprobante'],
+                'Exportacion' => $objetosArray['cfdi']['Exportacion'],
+                'MetodoPago' => $objetosArray['cfdi']['MetodoPago'],
+                'LugarExpedicion' => $objetosArray['cfdi']['LugarExpedicion']
+            );
+
+            $emisor = array(
+                'Rfc' => $objetosArray['cfdi']['Emisor']['Rfc'],
+                'Nombre' => $objetosArray['cfdi']['Emisor']['Nombre'],
+                'RegimenFiscal' => $objetosArray['cfdi']['Emisor']['RegimenFiscal']
+            );
+
+            $receptor = array(
+                'Rfc' => $objetosArray['cfdi']['Receptor']['Rfc'],
+                'Nombre' => $objetosArray['cfdi']['Receptor']['Nombre'],
+                'DomicilioFiscalReceptor' => $objetosArray['cfdi']['Receptor']['DomicilioFiscalReceptor'], //Por definir
+                'UsoCFDI' => $objetosArray['cfdi']['Receptor']['UsoCFDI'], //Por definir
+                'RegimenFiscalReceptor' => $objetosArray['cfdi']['Receptor']['RegimenFiscalReceptor'], //Por definir
+            );
+
+            $concepto = array(
+                'ClaveProdServ' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['ClaveProdServ'],
+                'NoIdentificacion' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['NoIdentificacion'], //??preguntar
+                'Cantidad' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Cantidad'],
+                'ClaveUnidad' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['ClaveUnidad'],
+                'Unidad' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Unidad'],
+                'Descripcion' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Descripcion'],
+                'ValorUnitario' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['ValorUnitario'],
+                'Importe' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Importe'],
+                'Descuento' => '0.00',
+                'ObjetoImp' => "02",
+                'Base' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Impuestos']['Traslados']['TrasladoConceptoR']['Base'], // desglose de impuestos por concepto
+                'Impuesto' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Impuestos']['Traslados']['TrasladoConceptoR']['Impuesto'], // desglose de impuestos por concepto
+                'TipoFactor' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Impuestos']['Traslados']['TrasladoConceptoR']['TipoFactor'], // desglose de impuestos por concepto
+                'AutRVOE' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['InstEducativas']['AutRVOE'],
+                'CURP' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['InstEducativas']['CURP'],
+                'NivelEducativo' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['InstEducativas']['NivelEducativo'],
+                'NombreAlumno' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['InstEducativas']['NombreAlumno'],
+                'RfcPago' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['InstEducativas']['RfcPago'],
+            );
+
+            // desglose de impuestos de la factura
+            $impuestos = array(
+                'TotalImpuestosTrasladados' => '0.00',
+                'Base' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Impuestos']['Traslados']['TrasladoConceptoR']['Base'], // desglose de impuestos por concepto
+                //'Importe' => '0.00',
+                'Impuesto' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Impuestos']['Traslados']['TrasladoConceptoR']['Impuesto'], // desglose de impuestos por concepto
+                //'TasaOCuota' => '0.000000',
+                'TipoFactor' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['Impuestos']['Traslados']['TrasladoConceptoR']['TipoFactor'], // desglose de impuestos por concepto
+            );
+
+            //Log::info($objetosArray);
+            $xmlFactura = $this->crearXmlFactura40($comprobante, $fecha_solicitud_factura_service, $emisor, $receptor, $concepto, $impuestos);
+            //dd($xmlFactura);
+            $data = array();
+            //dd($parametroFactPrbActiva->valor);
+            if ($parametroFactPrbActiva->valor == 1) {
+                //dd('decarga');
+                ob_end_clean();
+                ob_start();
+                header('Content-Type: application/xml; charset=UTF-8');
+                header('Content-Encoding: UTF-8');
+                header("Content-Disposition: attachment;filename=factura.xml");
+                header('Expires: 0');
+                header('Pragma: cache');
+                header('Cache-Control: private');
+                echo $xmlFactura;
+                dd("aqui ya descargo");
+            }else if($parametroFactPrbActiva->valor==2){
+                $data = array(
+                    "cti" => $cuenta,
+                    "pwd" => $cuenta_password,
+                    "idd" => "",
+                    "ncer" => "",
+                    "nb64" => "false",
+                    "xml" => base64_encode($xmlFactura)
+                    //"xml" => $xmlFactura
+                );
+                //dd($data);
+
+                $client = new Client(['base_uri' => $url]);
+                $response = $client->post("sellar-y-timbrar/", [
+                    // un array con la data de los headers como tipo de peticion, etc.
+                    //'headers' => ['foo' => 'bar'],
+                    // array de datos del formulario
+                    'json' => $data
+                ]);
+                $objR = json_decode($response->getBody()->getContents());
+                //dd($objR);
+                if ($objR->success == 0) {
+                    
+                    
+                    $destinatario = "linares82@gmail.com";
+                    $n = Auth::user()->name;
+                    $asunto = "Problema Facturacion";
+                    $contenido = $objR->message;
+                    $from = "ohpelayo@gmail.com";
+
+                    
+
+                    $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
+                    $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
+                    use ($asunto, $destinatario, $n, $from) {
+                        $message->from(env('MAIL_FROM_ADDRESS', 'hola@grupocedva.com'), env('MAIL_FROM_NAME', 'Grupo CEDVA'));
+                        $message->to($destinatario, $n)->subject($asunto);
+                        $message->replyTo($from);
+                    });
+
+                    dd($objR);
+                     
+                } else {
+                    $pagos1 = Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
+                    foreach ($pagos1 as $pago1) {
+                        $pago1->uuid = $objR->data->uuid;
+                        $pago1->xml = base64_decode($objR->data->xml);
+                        $pago1->fecha_solicitud_factura = $fecha_solicitud_factura_tabla;
+
+                        $pago1->save();
+
+                        //Envio de correo por parte del proveedor
+                        $data = array(
+                            "uid" => $cuenta,
+                            "pwd" => $cuenta_password,
+                            "doc" => $pago1->uuid,
+                            "to" => $cliente->fmail,
+                            //"from": "Nombre para mostrar del remitente (opcional)",
+                            //"cc"=>"Dirección de correo cc (opcional)",opcional
+                            //"cco"=>"Dirección de correo de copia oculta (opcional)",
+                            //"reply"=>"Dirección de correo de respuesta (opcional)",
+                            "subject" => "Factura" . $plantel->nombre_corto,
+                            //"body"=>"Cuerpo del mensaje de correo (opcional)",
+                            //"tpo"=>"cfdi/cr (opcional)",
+                            //"res"=>"(Opcional) tipo de resultado deseado",
+                            //"pln"=>"(Opcional) Identificador de plantilla de representación impresa"
+                        );
+                        $client = new Client(['base_uri' => $url->valor]);
+                        $response = $client->post("enviar/", [
+                            // un array con la data de los headers como tipo de peticion, etc.
+                            //'headers' => ['foo' => 'bar'],
+                            // array de datos del formulario
+                            'json' => $data
+                        ]);
+                        if ($response->success == 0){
+                            dd($response);
+                        }
+                        Log::info($response);
+                        //return back();
+                    }
+                }
+            } else {
+                $data = array(
+                    "cti" => $cuenta,
+                    "pwd" => $cuenta_password,
+                    "idd" => "",
+                    "ncer" => "",
+                    "nb64" => "false",
+                    "xml" => base64_encode($xmlFactura)
+                );
+
+                $client = new Client(['base_uri' => $url]);
+                $response = $client->post("sellar-y-timbrar/", [
+                    // un array con la data de los headers como tipo de peticion, etc.
+                    //'headers' => ['foo' => 'bar'],
+                    // array de datos del formulario
+                    'json' => $data
+                ]);
+                $objR = json_decode($response->getBody()->getContents());
+                if ($objR->success == 0) {
+                    //$facturaG->error_last = $objR->data;
+                    //$facturaG->save();
+                    $destinatario = "linares82@gmail.com";
+                    $n = Auth::user()->name;
+                    $asunto = "Problema Folios Digitales";
+                    $contenido = $objR->message;
+                    $from = "ohpelayo@gmail.com";
+
+                    //dd(env('MAIL_FROM_ADDRESS'));
+
+                    $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
+                    $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
+                    use ($asunto, $destinatario, $n, $from) {
+                        $message->from(env('MAIL_FROM_ADDRESS', 'hola@grupocedva.com'), env('MAIL_FROM_NAME', 'Grupo CEDVA'));
+                        $message->to($destinatario, $n)->subject($asunto);
+                        $message->replyTo($from);
+                    });
+
+                    dd($objR);
+                } else {
+                    $pagos1 = Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
+                    foreach ($pagos1 as $pago1) {
+                        $pago1->uuid = $objR->data->uuid;
+                        $pago1->xml = base64_decode($objR->data->xml);
+                        $pago1->fecha_solicitud_factura = $fecha_solicitud_factura_tabla;
+
+                        $pago1->save();
+
+                        //Envio de correo por parte del proveedor
+                        $data = array(
+                            "uid" => $cuenta,
+                            "pwd" => $cuenta_password,
+                            "doc" => $pago1->uuid,
+                            "to" => $cliente->fmail,
+                            //"from": "Nombre para mostrar del remitente (opcional)",
+                            //"cc"=>"Dirección de correo cc (opcional)",opcional
+                            //"cco"=>"Dirección de correo de copia oculta (opcional)",
+                            //"reply"=>"Dirección de correo de respuesta (opcional)",
+                            "subject" => "Factura" . $plantel->nombre_corto,
+                            //"body"=>"Cuerpo del mensaje de correo (opcional)",
+                            //"tpo"=>"cfdi/cr (opcional)",
+                            //"res"=>"(Opcional) tipo de resultado deseado",
+                            //"pln"=>"(Opcional) Identificador de plantilla de representación impresa"
+                        );
+                        $client = new Client(['base_uri' => $url->valor]);
+                        $response = $client->post("enviar/", [
+                            // un array con la data de los headers como tipo de peticion, etc.
+                            //'headers' => ['foo' => 'bar'],
+                            // array de datos del formulario
+                            'json' => $data
+                        ]);
+                        if ($response->success == 0){
+                            dd($response);
+                        }
+                        Log::info($response);
+                        //return back();
                     }
                 }
             }
+
         } catch (\Exception $e) {
-            echo $e->getMessage();
-            dd($e->getMessage());
+            //echo $e->getMessage();
+            //dd($e);
+            $destinatario = "linares82@gmail.com";
+            $n = Auth::user()->name;
+            $asunto = "Problema Facturacion error try catch";
+            $contenido = $e->getMessage();
+            $from = "ohpelayo@gmail.com";
+
+            //dd(env('MAIL_FROM_ADDRESS'));
+
+            $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
+            $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
+            use ($asunto, $destinatario, $n, $from) {
+                $message->from(env('MAIL_FROM_ADDRESS', 'hola@grupocedva.com'), env('MAIL_FROM_NAME', 'Grupo CEDVA'));
+                $message->to($destinatario, $n)->subject($asunto);
+                $message->replyTo($from);
+            });
+            dd($e);
         }
         return redirect()->route('fichaAdeudos.index');
+        //return redirect()->route('fichaAdeudos.index');
         //dd($cliente->toArray());
         //dd($adeudoPagoOnLine);
     }
 
-    public function getFacturaXmlByUuid40(Request $request)
-    {
-        $datos = $request->all();
-        //Parametros para el webservice
-        //$url = Param::where('llave', 'webServiceFacturacion')->first();
-        //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
-        //$password = Param::where('llave', 'passwordFacturacion')->first();
-        //$usuario = Param::where('llave', 'usuarioFacturacion')->first();
-        $pago = Pago::where('uuid', $datos['uuid'])->first();
-        $plantel = $pago->caja->plantel;
-
-        $parametroUrl=Param::where('llave', 'webServiceFacturacion')->first();
-        $parametroFactPrbActiva=Param::where('llave', 'fact_prb_activa')->first();
-        $url = $parametroUrl->valor;
-        $cuenta = $plantel->fcuenta;
-        $password = $plantel->fpassword;
-        $usuario = $plantel->fusuario;
-        if ($parametroFactPrbActiva->valor == 1) {
-            $parametroUrl=Param::where('llave', 'test_api_facturacion')->first();
-            $parametroCuenta=Param::where('llave', 'prb_cuentaFacturacion')->first();
-            $parametroUsuario=Param::where('llave', 'prb_usuarioFacturacion')->first();
-            $parametroPass=Param::where('llave', 'prb_passwordFacturacion')->first();
-            $url = $parametroUrl->valor;
-            $cuenta = $parametroCuenta->valor;
-            $password = $parametroPass->valor;
-            $usuario = $parametroUsuario->valor;
-        }
-
-        try {
-            $opts = array(
-                'http' => array(
-                    'user_agent' => 'PHPSoapClient'
-                )
-            );
-            $context = stream_context_create($opts);
-
-            $wsdlUrl = $url;
-            $soapClientOptions = array(
-                'stream_context' => $context,
-                'cache_wsdl' => WSDL_CACHE_NONE
-            );
-
-            $client = new SoapClient($wsdlUrl, $soapClientOptions);
-
-            //dd($client->__getFunctions());
-
-            $objetosArray = array(
-                'credenciales' => array(
-                    'Cuenta' => $cuenta,
-                    'Password' => $password,
-                    'Usuario' => $usuario
-                ),
-                'uuid' => $datos['uuid'],
-            );
-            //dd($objetosArray);
-            $result = $client->ObtenerXMLPorUUID40($objetosArray)->ObtenerXMLPorUUID40Result;
-            //dd($result);
-            if ($result->OperacionExitosa <> true) {
-                dd($result->ErrorGeneral);
-                Session::flash('error', $result->ErrorGeneral);
-                return back();
-            } elseif ($result->OperacionExitosa == true) {
-                //$xml = simplexml_load_string($result->XML);
-                //dd($xml);
-                return response()->attachment($result->XML);
-            }
-        } catch (\Exception $e) {
-            echo $e->getMessage();
-        }
-    }
-
-
     public function getFacturaPdfByUuid40(Request $request)
     {
         $datos = $request->all();
-        //Parametros para el webservice
-        //$url = Param::where('llave', 'webServiceFacturacion')->first();
-        //$cuenta = Param::where('llave', 'cuentaFacturacion')->first();
-        //$password = Param::where('llave', 'passwordFacturacion')->first();
-        //$usuario = Param::where('llave', 'usuarioFacturacion')->first();
-        $pago = Pago::where('uuid', $datos['uuid'])->first();
-        $plantel = $pago->caja->plantel;
+		$pago = Pago::where('uuid',$datos['uuid']);
+		$url_aux = Param::where('llave', 'fact_global_url')->first();
+		$url = $url_aux->valor . "descargar/";
+		//dd($url);
+		$fact_prb_activa = Param::where('llave', 'fact_prb_activa')->first();
 
-        $parametroUrl=Param::where('llave', 'webServiceFacturacion')->first();
-        $parametroFactPrbActiva=Param::where('llave', 'fact_prb_activa')->first();
-        $url = $parametroUrl->valor;
-        $cuenta = $plantel->fcuenta;
-        $password = $plantel->fpassword;
-        $usuario = $plantel->fusuario;
-        if ($parametroFactPrbActiva->valor == 1) {
-            $parametroUrl=Param::where('llave', 'test_api_facturacion')->first();
-            $parametroCuenta=Param::where('llave', 'prb_cuentaFacturacion')->first();
-            $parametroUsuario=Param::where('llave', 'prb_usuarioFacturacion')->first();
-            $parametroPass=Param::where('llave', 'prb_passwordFacturacion')->first();
-            $url = $parametroUrl->valor;
-            $cuenta = $parametroCuenta->valor;
-            $password = $parametroPass->valor;
-            $usuario = $parametroUsuario->valor;
-        }
+		$data = array();
 
-        try {
-            $opts = array(
-                'http' => array(
-                    'user_agent' => 'PHPSoapClient'
-                )
-            );
-            $context = stream_context_create($opts);
+		if ($fact_prb_activa->valor == 1) {
+			$fact_global_id_usu_prb = Param::where('llave', 'fact_global_id_usu_prb')->first();
+			$fact_global_pass_usu_prb = Param::where('llave', 'fact_global_pass_usu_prb')->first();
+			$data = array(
+				"uid" => $fact_global_id_usu_prb->valor,
+				"pwd" => $fact_global_pass_usu_prb->valor,
+				"doc" => $pago->uuid,
+				"res" => "ziplnk",
+				"tpo" => "",
+				"pln" => ""
+			);
+		} else {
+			$data = array(
+				"uid" => $pago->caja->plantel->matriz->fact_global_id_usu,
+				"pwd" => $pago->caja->plantel->matriz->fact_global_pass_usu,
+				"doc" => $pago->uuid,
+				"res" => "ziplnk",
+				"tpo" => "",
+				"pln" => ""
+			);
+		}
 
-            $wsdlUrl = $url;
-            $soapClientOptions = array(
-                'stream_context' => $context,
-                'cache_wsdl' => WSDL_CACHE_NONE
-            );
+		//dd($data);
+		$opciones = array(
+			"http" => array(
+				"header" => "Content-type: application/x-www-form-urlencoded\r\n",
+				"method" => "POST",
+				"content" => http_build_query($data), # Agregar el contenido definido antes
+			),
+		);
+		# Preparar petición
+		$contexto = stream_context_create($opciones);
 
-            $client = new SoapClient($wsdlUrl, $soapClientOptions);
+		//*****para ver el flujo durante la invocación
+		$flujo = fopen($url, 'r', false, $contexto);
+		stream_set_blocking($flujo, false);
+		//***************
 
-            //dd($client->__getFunctions());
+		//*******************respuestas en formato json
+		$resultado = file_get_contents($url, false, $contexto);
+		//dd($contexto);
 
-            $objetosArray = array(
-                'credenciales' => array(
-                    'Cuenta' => $cuenta,
-                    'Password' => $password,
-                    'Usuario' => $usuario
-                ),
-                'uuid' => $datos['uuid'],
-                'nombrePlantilla' => ''
-            );
-            //dd($objetosArray);
-            $result = $client->ObtenerPdf40($objetosArray)->ObtenerPDF40Result;
+		$data = json_decode($resultado, true);
 
-            if ($result->OperacionExitosa <> true) {
-                dd($result->ErrorGeneral);
-                Session::flash('error', $result->ErrorGeneral);
-                return back();
-            } elseif ($result->OperacionExitosa == true) {
-                $data = base64_decode($result->PDF);
-                header('Content-Type: application/pdf');
-                echo $data;
+		echo json_encode($data);
+
+		if ($data["success"] == false) {
+			echo "Error:" . $data["message"];
+			exit;
+		}
+
+		# si fue existoso
+		if ($data["success"] == true) {
+			/*echo "<br>";
+			echo "<br>";
+			echo "<label>Puede descargar el zip dando click en el botón </label>";
+			echo "<a href='".$data["data"]["link"]."'><button style='background:green;'>Descargar</button></a>";
+			*/
+			return redirect()->away($data["data"]["link"]);
+		} {
+			dd('Recurso no encontrado');
+		}
+    }
+
+    public function crearXmlFactura40($comprobante, $fecha_solicitud_factura_service, $emisor, $receptor, $concepto, $impuestos)
+    {
+        //dd($impuestos);
+        $objetoXML = new XMLWriter();
+
+        $objetoXML->openMemory();
+        $objetoXML->setIndent(true);
+        $objetoXML->setIndentString("\t");
+        $objetoXML->startDocument('1.0', 'utf-8');
+
+        $objetoXML->startElement("cfdi:Comprobante");
+        $objetoXML->writeAttribute("Version", $comprobante["Version"]);
+        $objetoXML->writeAttribute("xmlns:xsi", $comprobante["xmlns:xsi"]);
+        $objetoXML->writeAttribute("xmlns:cfdi", $comprobante["xmlns:cfdi"]);
+        $objetoXML->writeAttribute("xmlns:iedu", $comprobante["xmlns:iedu"]);
+        $objetoXML->writeAttribute("xsi:schemaLocation", $comprobante["xsi:schemaLocation"]);
+        $objetoXML->writeAttribute("Serie", $comprobante["Serie"]);
+        $objetoXML->writeAttribute("Folio", $comprobante["Folio"]);
+        $objetoXML->writeAttribute("Fecha", $fecha_solicitud_factura_service);
+        $objetoXML->writeAttribute("NoCertificado", $comprobante["NoCertificado"]);
+        $objetoXML->writeAttribute("Certificado", $comprobante["Certificado"]);
+        $objetoXML->writeAttribute("FormaPago", $comprobante["FormaPago"]);
+        $objetoXML->writeAttribute("CondicionesDePago", $comprobante["CondicionesDePago"]);
+        $objetoXML->writeAttribute("TipoCambio", $comprobante["TipoCambio"]);
+        $objetoXML->writeAttribute("SubTotal", $comprobante["SubTotal"]);
+        $objetoXML->writeAttribute("Moneda", $comprobante["Moneda"]);
+        $objetoXML->writeAttribute("Total", $comprobante["Total"]);
+        $objetoXML->writeAttribute("TipoDeComprobante", $comprobante["TipoDeComprobante"]);
+        $objetoXML->writeAttribute("Exportacion", $comprobante["Exportacion"]);
+        $objetoXML->writeAttribute("MetodoPago", $comprobante["MetodoPago"]);
+        $objetoXML->writeAttribute("LugarExpedicion", $comprobante["LugarExpedicion"]);
+
+        $objetoXML->startElement('cfdi:Emisor');
+        $objetoXML->writeAttribute("Rfc", $emisor["Rfc"]);
+        $objetoXML->writeAttribute("Nombre", $emisor["Nombre"]);
+        $objetoXML->writeAttribute("RegimenFiscal", $emisor["RegimenFiscal"]);
+        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
+
+        $objetoXML->startElement('cfdi:Receptor');
+        $objetoXML->writeAttribute("Rfc", $receptor["Rfc"]);
+        $objetoXML->writeAttribute("Nombre", $receptor["Nombre"]);
+        $objetoXML->writeAttribute("DomicilioFiscalReceptor", $receptor["DomicilioFiscalReceptor"]);
+        $objetoXML->writeAttribute("UsoCFDI", $receptor["UsoCFDI"]);
+        $objetoXML->writeAttribute("RegimenFiscalReceptor", $receptor["RegimenFiscalReceptor"]);
+        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
+
+        $objetoXML->startElement('cfdi:Conceptos');
+        //foreach ($conceptos as $concepto) {
+            $objetoXML->startElement('cfdi:Concepto');
+                $objetoXML->writeAttribute("ClaveProdServ", $concepto["ClaveProdServ"]);
+                $objetoXML->writeAttribute("NoIdentificacion", $concepto["NoIdentificacion"]);
+                $objetoXML->writeAttribute("Cantidad", $concepto["Cantidad"]);
+                $objetoXML->writeAttribute("ClaveUnidad", $concepto["ClaveUnidad"]);
+                //$objetoXML->writeAttribute("Unidad", $concepto["Unidad"]);
+                $objetoXML->writeAttribute("Descripcion", $concepto["Descripcion"]);
+                $objetoXML->writeAttribute("ValorUnitario", $concepto["ValorUnitario"]);
+                $objetoXML->writeAttribute("Importe", $concepto["Importe"]);
+                $objetoXML->writeAttribute("ObjetoImp", $concepto["ObjetoImp"]);
+                $objetoXML->startElement('cfdi:Impuestos');
+                    $objetoXML->startElement('cfdi:Traslados');
+                        $objetoXML->startElement('cfdi:Traslado');
+                        $objetoXML->writeAttribute("Base", $concepto["Base"]);
+                        $objetoXML->writeAttribute("Impuesto", $concepto["Impuesto"]);
+                        $objetoXML->writeAttribute("TipoFactor", $concepto["TipoFactor"]);
+                    $objetoXML->endElement();
+                $objetoXML->endElement();
+                $objetoXML->startElement('cfdi:ComplementoConcepto');
+                    $objetoXML->startElement('iedu:instEducativas');
+                    $objetoXML->writeAttribute("Version", "1.0");
+                    $objetoXML->writeAttribute("nombreAlumno", $concepto["NombreAlumno"]);
+                    $objetoXML->writeAttribute("CURP", $concepto["CURP"]);
+                    $objetoXML->writeAttribute("nivelEducativo", $concepto["NivelEducativo"]);
+                    $objetoXML->writeAttribute("autRVOE", $concepto["AutRVOE"]);
+                    $objetoXML->writeAttribute("rfcPago", $concepto["RfcPago"]);
+                $objetoXML->endElement();
+            $objetoXML->endElement();
+        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
+
+        //}
+        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
+        $objetoXML->startElement('cfdi:Impuestos');
+        $objetoXML->writeAttribute("TotalImpuestosTrasladados", $impuestos["TotalImpuestosTrasladados"]);
+        $objetoXML->startElement('cfdi:Traslados');
+        $objetoXML->startElement('cfdi:Traslado');
+        $objetoXML->writeAttribute("Base", $impuestos["Base"]);
+        $objetoXML->writeAttribute("Impuesto", $impuestos["Impuesto"]);
+        $objetoXML->writeAttribute("TipoFactor", $impuestos["TipoFactor"]);
+        //$objetoXML->writeAttribute("TasaOCuota", $impuestos["TasaOCuota"]);
+        //$objetoXML->writeAttribute("Importe", $impuestos["Importe"]);
+        $objetoXML->endElement();
+        $objetoXML->endElement();
+        $objetoXML->endElement();
+
+        $objetoXML->fullEndElement(); // Final del elemento "obra" que cubre cada obra de la matriz.
+        $objetoXML->endElement(); // Final del nodo raíz, "obras"
+        $objetoXML->endDocument(); // Final del documento
+
+        $content = $objetoXML->outputMemory();
+        return $content;
+    }
+
+    public function validaEntregaDocs3Meses($cliente)
+    {
+        //Log::info($cliente);
+        //return true;
+        $cliente = Cliente::find($cliente);
+
+        $dentro3Meses = false;
+
+        if (!is_null($cliente->matricula) or $cliente->matricula <> "") {
+            $mesActual = Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
+            $anioActual = Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->year;
+
+            $mesMatricula = intval(substr($cliente->matricula, 0, 2));
+            $anioMatricula = intval("20" . substr($cliente->matricula, 2, 2));
+
+            if (
+                $anioActual == $anioMatricula and
+                $mesActual <= $mesMatricula
+            ) {
+                $dentro3Meses = true;
+            } elseif (
+                $anioActual == $anioMatricula and
+                $mesActual > $mesMatricula and
+                ($mesActual - $mesMatricula) <= 3
+            ) {
+                $dentro3Meses = true;
+            } elseif (
+                $anioActual > $anioMatricula and
+                $mesActual < $mesMatricula and $mesActual <= 3 and
+                ($anioActual - $anioMatricula) == 1 and
+                ($mesActual - $mesMatricula) * -1 <= 3
+            ) {
+                $dentro3Meses = true;
+            } elseif (
+                $anioActual > $anioMatricula and
+                $mesActual > $mesMatricula and
+                ($anioActual - $anioMatricula) == 1 and
+                ($mesActual - $mesMatricula) <= 3
+            ) {
+                $dentro3Meses = true;
             }
-        } catch (\Exception $e) {
-            echo $e->getMessage();
+        } else {
+            $dentro3Meses = true;
         }
-        //dd($result);
+
+        return $dentro3Meses;
     }
 }

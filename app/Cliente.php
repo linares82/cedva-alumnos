@@ -45,7 +45,7 @@ class Cliente extends Model
         'no_poliza', 'nacionalidad', 'edad', 'estado_civil_id', 'estado_nacimiento_id', 'fec_reingreso',
         'pagador_id', 'discapacidad_id', 'bnd_trabaja', 'bnd_indigena', 'tipo_persona_id', 'frfc', 'frazon',
         'fcalle', 'fno_exterior', 'fno_interior', 'fcolonia', 'fciudad', 'fmunicipio', 'festado', 'fpais', 'fcp',
-        'fmail','observaciones','uso_factura_id','regimen_fiscal_id'
+        'fmail','observaciones','uso_factura_id','regimen_fiscal_id','bnd_doc_oblig_entregados'
     ];
 
     public function usu_alta()

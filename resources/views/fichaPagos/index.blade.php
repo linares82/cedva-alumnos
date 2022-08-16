@@ -1,3 +1,5 @@
+@inject('cli_funciones','App\Http\Controllers\FichaPagosController')
+
 @extends('layouts.master1')
 
 @section('content')
@@ -46,7 +48,7 @@
         Les recordamos que en caso de requerir factura esto lo puede hacer durante las 72 hrs siguientes después de realizar su pago. Cualquier duda estamos a sus ordenes en el correo facturacion@grupocedva.com
     </div>
 
-    @if($cliente->bnd_doc_oblig_entregados==1)
+    @if($cliente->bnd_doc_oblig_entregados==1 or $cli_funciones->validaEntregaDocs3Meses($cliente->id))
     <div class="col-md-12">
         @php
             $j=0;
@@ -158,20 +160,28 @@
                                         ->where('adeudos.fecha_pago','<=',$adeudo->fecha_pago)
                                         //->orderBy('pagado_bnd', 'desc')
                                         ->count();
-
+                                        $hoy=DateTime::createFromFormat('Y-m-d', date('Y-m-d'));
+                                        //Se agregan 10 dias la fecha de pago por q no siempre existe fecha en el pago en linea
+                                        $fecha_adeudo=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDays(9);    
+                                        //dd($fecha_adeudo);
+                                        
+                                        $pago_adelantado=$hoy<$fecha_adeudo;
+                                        
                                         @endphp
 
 
-                                        @if($adeudos_no_mensualidad>0)
-                                            Adeudo pendiente comunicarse al plantel
+                                        @if($adeudos_no_mensualidad>0 and !$pago_adelantado)
+                                        Adeudo pendiente comunicarse al plantel
                                         @endif
+                                        
                                         @if($adeudo->pagado_bnd==1)
                                             <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI</span>
                                         @elseif($adeudo->pagado_bnd==0 and
                                                 isset(optional($adeudo->pagoOnLine)->total) and
-                                                $adeudo->fecha_pago>date('Y-m-d') and
-                                                $existe_seccion_valida==1 and
-                                                $adeudos_no_mensualidad==0)
+                                                //$adeudo->fecha_pago>date('Y-m-d') and
+                                                $fecha_adeudo>date('Y-m-d') and
+                                                $existe_seccion_valida==1)<!--// and
+                                                //($adeudos_no_mensualidad==0 or ($adeudos_no_mensualidad==1 and $pago_adelantado)))-->
                                             <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }} </span>
                                             @if($bandera_pagar_en_linea==0)
                                                 <!--@@if(optional($peticion)->mp_paymentmethod=="SUC")
@@ -213,7 +223,11 @@
                                                 Imprimir
                                                 <i class="ace-icon fa fa-print  align-top bigger-125 icon-on-right"></i>
                                             </a>
-
+                                             <!--Quitar este link despues de probar-->
+                                            <!--<a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
+                                                    Facturar
+                                                    <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
+                                                </a>-->
                                             <!--@@if(Auth::user()->nivel==0 )-->
 
                                             @php
@@ -231,9 +245,8 @@
                                                 is_null($adeudo->caja->pago->cbb) and
                                                 is_null($adeudo->caja->pago->xml) and
                                                 $mesHoy==$mesFechaPago and
-                                                $anioHoy==$anioFechaPago
-						 /*and
-                                                $fechaPago->diffInHours($fechaHoy)<=72*/)
+                                                $anioHoy==$anioFechaPago and
+                                                $fechaPago->diffInHours($fechaHoy)<=72)
                                                 <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
                                                     Facturar
                                                     <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
@@ -254,12 +267,9 @@
                                                 </a>
                                                 @elseif($fact_40_activa->valor==1)
                                                 <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid40', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
-                                                    <i class="ace-icon fa fa-download"></i> Pdf
+                                                    <i class="ace-icon fa fa-download"></i> Factura
                                                 </a>
 
-                                                <a href="{{ route('fichaAdeudos.getFacturaXmlByUuid40', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" class="btn btn-info btn-white btn-xs">
-                                                    <i class="ace-icon fa fa-download"></i> Xml
-                                                </a>
                                                 @endif
                                             @endif
                                             <!--@@endif-->
