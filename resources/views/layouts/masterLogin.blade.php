@@ -233,6 +233,8 @@
         <script src="{{ asset('ace-master/assets/js/bootstrap-datetimepicker.min.js') }}"></script>
         <!-- Date picker-->
         <script src="{{ asset('ace-master/assets/js/bootstrap-datepicker.min.js') }}"></script>
+        <!-- Bootbox.js-->
+        <script src="{{ asset('ace-master/assets/js/bootbox.js') }}"></script>
 
         <script type="text/javascript">
             $(document).ready(function () {

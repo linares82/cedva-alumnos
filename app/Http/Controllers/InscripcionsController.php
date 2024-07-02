@@ -959,33 +959,64 @@ class InscripcionsController extends Controller
     public function historial(Request $request)
     {
         $datos = $request->all();
+        //dd($datos);
         $inscripcion = Inscripcion::find($datos['inscripcion']);
+
         $cliente = Cliente::find($inscripcion->cliente_id);
         $plantel = Plantel::find($inscripcion->plantel_id);
         $grado = Grado::find($inscripcion->grado_id);
         $resultados = array();
-        $hacademicas = Hacademica::select(
-            'm.name as materia',
-            'm.codigo',
-            'm.creditos',
-            'l.name as lectivo',
-            'hacademicas.id'
-            //'c.calificacion',
-            //'te.id',
-            //'te.name as tipo_examen'
-        )
-            ->join('lectivos as l', 'l.id', '=', 'hacademicas.lectivo_id')
-            //->join('grados as g', 'g.id', '=', 'hacademicas.grado_id')
-            ->join('materia as m', 'm.id', '=', 'hacademicas.materium_id')
-            //->join('calificacions as c', 'c.hacademica_id', 'hacademicas.id')
-            //->join('tpo_examens as te', 'te.id', '=', 'c.tpo_examen_id')
-            ->where('inscripcion_id', $inscripcion->id)
-            ->whereNull('hacademicas.deleted_at')
-            //->whereNull('c.deleted_at')
-            ->with('cliente')
-            ->orderBy('hacademicas.id')
-            //->orderBy('te.id')
-            ->get();
+        $fecha_lectivo_fin = carbon::createFromFormat('Y-m-d', $inscripcion->lectivo->fin);
+        $hoy = carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+        if ($fecha_lectivo_fin->lessThanOrEqualTo($hoy)) {
+            $hacademicas = Hacademica::select(
+                'm.name as materia',
+                'm.codigo',
+                'm.creditos',
+                'l.name as lectivo',
+                'hacademicas.id'
+                //'c.calificacion',
+                //'te.id',
+                //'te.name as tipo_examen'
+            )
+                ->join('lectivos as l', 'l.id', '=', 'hacademicas.lectivo_id')
+                //->join('grados as g', 'g.id', '=', 'hacademicas.grado_id')
+                ->join('materia as m', 'm.id', '=', 'hacademicas.materium_id')
+                //->join('calificacions as c', 'c.hacademica_id', 'hacademicas.id')
+                //->join('tpo_examens as te', 'te.id', '=', 'c.tpo_examen_id')
+                ->where('inscripcion_id', $inscripcion->id)
+                ->whereNull('hacademicas.deleted_at')
+                //->whereNull('c.deleted_at')
+                ->with('cliente')
+                ->orderBy('hacademicas.id')
+                //->orderBy('te.id')
+                ->get();
+        }else{
+            $hacademicas = Hacademica::select(
+                'm.name as materia',
+                'm.codigo',
+                'm.creditos',
+                'l.name as lectivo',
+                'hacademicas.id'
+                //'c.calificacion',
+                //'te.id',
+                //'te.name as tipo_examen'
+            )
+                ->join('lectivos as l', 'l.id', '=', 'hacademicas.lectivo_id')
+                //->join('grados as g', 'g.id', '=', 'hacademicas.grado_id')
+                ->join('materia as m', 'm.id', '=', 'hacademicas.materium_id')
+                //->join('calificacions as c', 'c.hacademica_id', 'hacademicas.id')
+                //->join('tpo_examens as te', 'te.id', '=', 'c.tpo_examen_id')
+                ->where('inscripcion_id', $inscripcion->id)
+                ->whereNull('hacademicas.deleted_at')
+                ->whereDate('lectivo.fin','<', $fecha_lectivo_fin)
+                //->whereNull('c.deleted_at')
+                ->with('cliente')
+                ->orderBy('hacademicas.id')
+                //->orderBy('te.id')
+                ->get();
+        }
+
         foreach ($hacademicas as $hacademica) {
             $tpo_examen_max = Calificacion::where('hacademica_id', $hacademica->id)->max('tpo_examen_id');
             $calificacion = Calificacion::select('calificacions.calificacion', 'te.name as tipo_examen')
@@ -1005,11 +1036,11 @@ class InscripcionsController extends Controller
             array_push($resultados, $resultado);
         }
         //dd($resultados);
-        if($cliente->matricula<>"" and !is_null($cliente->matricula)){
+        if ($cliente->matricula <> "" and !is_null($cliente->matricula)) {
             $consulta_calificaciones = ConsultaCalificacion::where('matricula', 'like', "%" . $cliente->matricula . "%")->get();
-        }else{
-            $consulta_calificaciones=collect();
-    	}
+        } else {
+            $consulta_calificaciones = collect();
+        }
 
 
         //dd($consulta_calificaciones);
@@ -2684,10 +2715,10 @@ class InscripcionsController extends Controller
             array_push($resultados, $resultado);
         }
         //dd($resultados);
-        if($cliente->matricula<>"" and !is_null($cliente->matricula)){
+        if ($cliente->matricula <> "" and !is_null($cliente->matricula)) {
             $consulta_calificaciones = ConsultaCalificacion::where('matricula', 'like', "%" . $cliente->matricula . "%")->get();
-        }else{
-            $consulta_calificaciones=collect();
+        } else {
+            $consulta_calificaciones = collect();
         }
 
         //dd($consulta_calificaciones);

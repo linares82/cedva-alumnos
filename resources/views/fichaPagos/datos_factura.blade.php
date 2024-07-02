@@ -2,6 +2,12 @@
 
 @section('content')
 
+<style type="text/css">
+input{
+    text-transform: uppercase;
+}
+</style>
+
 <div class="row">
     <div class="col-md-12">
         <h4>Datos Para Facturar</h4>
@@ -242,7 +248,7 @@ $(document).ready(function(){
                     "CP: "+cp+"<br>",
             buttons: {
                 confirm: {
-                    label: "Guardar",
+                    label: "Facturar",
                     className: "btn-primary btn-sm",
                 },
                 cancel: {

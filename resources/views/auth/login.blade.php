@@ -4,7 +4,7 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-sm-6 col-sm-offset-3">
-        <!--
+            <!--
             <div class="card">
             <div class="card-body">
                 <div class="widget-box widget-color-red2" id="widget-box-3">
@@ -29,7 +29,7 @@
             </div>
             -->
             <div class="card">
-                <div class="card-body" >
+                <div class="card-body">
                     <div class="widget-box ui-sortable-handle" id="widget-box-3">
                         <div class="widget-header widget-header-small">
                             <h6 class="widget-title">
@@ -47,12 +47,12 @@
                                         <label for="email" class="col-md-4 col-form-label text-md-right">{{ __('Matricula') }}</label>
 
                                         <div class="col-md-6">
-                                            <input id="name"  class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" required autocomplete="name" autofocus>
+                                            <input id="name" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" required autocomplete="name" autofocus>
 
                                             @error('name')
-                                                <span class="invalid-feedback" role="alert">
-                                                    <strong>{{ $message }}</strong>
-                                                </span>
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
                                             @enderror
                                         </div>
                                     </div>
@@ -64,9 +64,9 @@
                                             <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" name="password" required autocomplete="current-password">
 
                                             @error('password')
-                                                <span class="invalid-feedback" role="alert">
-                                                    <strong>{{ $message }}</strong>
-                                                </span>
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
                                             @enderror
                                         </div>
                                     </div>
@@ -89,14 +89,15 @@
                                             </button>
 
                                             @if (Route::has('password.request'))
-                                                <a class="btn btn-link" href="{{ route('password.request') }}">
-                                                    {{ __('¿Olvidaste tu contraseña?') }}
-                                                </a>
+                                            <a class="btn btn-link" href="{{ route('password.request') }}">
+                                                {{ __('¿Olvidaste tu contraseña?') }}
+                                            </a>
                                             @endif
                                         </div>
                                     </div>
                                 </form>
                             </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -104,3 +105,24 @@
     </div>
 </div>
 @endsection
+
+    @push('scripts')
+    <script type="text/javascript">
+        $(document).ready(function() {
+            bootbox.dialog({
+                message: "<h1>Aviso Importante</h1><br/><span class='bigger-110'>Estimado alumno te informamos que solo tienes el mes en curso para solicita tu factura, si pagaste en día último del mes en curso solo tienes 24 hrs. para solicitarla. Utiliza nuestro servicio de factura en línea es muy sencillo y rápido para generar tu factura.</span>",
+                buttons:
+                {
+                    "success" :
+                        {
+                        "label" : "<i class='ace-icon fa fa-check'></i> Aceptar!",
+                        "className" : "btn-sm btn-success",
+                        "callback": function() {
+                            //Example.show("great success");
+                        }
+                    },
+                }
+		    });
+        });
+    </script>
+    @endpush

@@ -27,11 +27,11 @@ Route::get('/home', 'HomeController@index')
 
 Auth::routes();
 //Route::get('/', 'Auth\LoginController@showLoginForm');
-
+/*
 Route::get('/', function () {
     return view('welcome');
 });
-
+*/
 
 Route::get(
     '/users/editPerfil/{id}',
@@ -78,6 +78,16 @@ Route::get(
     )
 )->middleware('auth');
 
+Route::get(
+    '/fichaAdeudos/verDetalleOpenpay',
+    array(
+        'as' => 'fichaAdeudos.verDetalleOpenpay',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@verDetalleOpenpay'
+    )
+)->middleware('auth');
+
+
 Route::post(
     '/fichaAdeudos/crearCajaPagoPeticion',
     array(
@@ -86,6 +96,16 @@ Route::post(
         'uses' => 'FichaPagosController@crearCajaPagoPeticion'
     )
 )->middleware('auth');
+
+Route::post(
+    '/fichaAdeudos/crearCajaPagoPeticionOpenpay',
+    array(
+        'as' => 'fichaAdeudos.crearCajaPagoPeticionOpenpay',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@crearCajaPagoPeticionOpenpay'
+    )
+)->middleware('auth');
+
 
 Route::get(
     '/fichaAdeudos/imprimir',

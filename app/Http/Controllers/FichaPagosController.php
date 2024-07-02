@@ -27,29 +27,44 @@ use App\RegimenFiscal;
 use GuzzleHttp\Client;
 use App\CuentasEfectivo;
 use App\ImpresionTicket;
+use App\PeticionOpenpay;
 use App\AdeudoPagoOnLine;
 use App\AutorizacionBeca;
 use App\SuccessMultipago;
+use Openpay\Data\Openpay;
 use App\NivelEducativoSat;
 use App\PeticionMultipago;
 use App\CombinacionCliente;
+
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
 use App\SerieFolioSimplificado;
+use Illuminate\Http\JsonResponse;
+use Openpay\Data\OpenpayApiError;
 use Illuminate\Support\Facades\DB;
-
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+
+use Openpay\Data\OpenpayApiAuthError;
 use Illuminate\Support\Facades\Session;
 use Luecano\NumeroALetras\NumeroALetras;
+use Openpay\Data\OpenpayApiRequestError;
+use Openpay\Data\OpenpayApiConnectionError;
 use Illuminate\Support\Facades\Notification;
+use Openpay\Data\OpenpayApiTransactionError;
 use App\Notifications\NotificacionErrorApiFoliosDigitales;
+
+require_once '../vendor/autoload.php';
 
 class FichaPagosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $datos = $request->all();
+        if (isset($datos['id'])) {
+            $this->successOpenpay($datos['id']);
+        }
         $cliente = Cliente::where('matricula', Auth::user()->name)->first();
         /*$pago=Pago::find(86721);
         $pago->fecha="2021-10-11";
@@ -162,7 +177,7 @@ class FichaPagosController extends Controller
             ->get();
         //dd($adeudos->toArray());
         foreach ($adeudos as $adeudo) {
-            Log::Info($adeudo->toArray());
+            //Log::Info($adeudo->toArray());
             $adeudo_pago_online = optional($adeudo)->pagoOnLine;
             //$adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
             //dd($adeudo->toArray());
@@ -547,6 +562,19 @@ class FichaPagosController extends Controller
         //}
     }
 
+    public function verDetalleOpenpay(Request $request)
+    {
+        $datos = $request->all();
+
+        //dd($navegador."-".$dispositivo);
+
+        $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
+        $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
+        $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->pluck('name', 'id');
+        //dd($plantel);
+        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos'));
+    }
+
     public function verDetalle(Request $request)
     {
         $datos = $request->all();
@@ -752,6 +780,571 @@ class FichaPagosController extends Controller
         ], 200);
     }
 
+    public function crearCajaPagoPeticionOpenpay(Request $request)
+    {
+        $datos = $request->all();
+        //dd($datos);
+        $adeudo_pago_online = AdeudoPagoOnLine::with('cliente')
+            ->with('caja')
+            ->with('pago')
+            ->with('peticionMultipago')
+            ->find($datos['adeudo_pago_online_id']);
+        $plantel = Plantel::find($adeudo_pago_online->plantel_id);
+
+
+        $existePeticionOpenpayBancos = PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+            ->where('pmethod', 'bank_account')
+            //->whereNotNull('rid')
+            ->first();
+        //dd(!is_null($existePeticionOpenpayBancos));
+        if (!is_null($existePeticionOpenpayBancos)) {
+            $resultado = $this->pagoBancoExistente($existePeticionOpenpayBancos, $plantel);
+            return response()->json($resultado);
+        }
+
+
+        //Se crea registro de caja si no tiene
+        if ($adeudo_pago_online->caja_id == 0 or is_null($adeudo_pago_online->caja_id)) {
+            $inputCaja['cliente_id'] = $adeudo_pago_online->cliente->id;
+            $inputCaja['plantel_id'] = $adeudo_pago_online->cliente->plantel->id;
+            $inputCaja['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCaja['descuento'] = $adeudo_pago_online->descuento;
+            $inputCaja['recargo'] = $adeudo_pago_online->recargo;
+            $inputCaja['total'] = $adeudo_pago_online->total;
+            $inputCaja['forma_pago_id'] = $datos['forma_pago_id'];
+            $inputCaja['fecha'] = date('Y-m-d');
+            $inputCaja['st_caja_id'] = 0;
+            $inputCaja['usu_alta_id'] = 1;
+            $inputCaja['usu_mod_id'] = 1;
+            $consecutivo = ++$plantel->consecutivo;
+            $plantel->save();
+            $inputCaja['consecutivo'] = $consecutivo;
+            $caja = Caja::create($inputCaja);
+            $adeudo_pago_online->caja_id = $caja->id;
+            $adeudo_pago_online->save();
+            $adeudo = $adeudo_pago_online->adeudo;
+            $adeudo->caja_id = $caja->id;
+            $adeudo->save();
+        } else {
+            $caja = $adeudo_pago_online->caja;
+            //Caja::find($adeudo_pago_online->caja_id);
+            $inputCaja['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCaja['descuento'] = $adeudo_pago_online->descuento;
+            $inputCaja['recargo'] = $adeudo_pago_online->recargo;
+            $inputCaja['total'] = $adeudo_pago_online->total;
+            $inputCaja['forma_pago_id'] = $datos['forma_pago_id'];
+            $inputCaja['fecha'] = date('Y-m-d');
+            $caja->update($inputCaja);
+        }
+
+
+        //Se crea linea de caja si no la tiene
+        if ($adeudo_pago_online->caja_ln_id == 0 or is_null($adeudo_pago_online->caja_ln_id)) {
+            $inputCajaLn['caja_id'] = $caja->id;
+            $inputCajaLn['caja_concepto_id'] = $adeudo_pago_online->adeudo->caja_concepto_id;
+            $inputCajaLn['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCajaLn['descuento'] = $adeudo_pago_online->descuento;
+            $inputCajaLn['recargo'] = $adeudo_pago_online->recargo;
+            $inputCajaLn['total'] = $adeudo_pago_online->total;
+            $inputCajaLn['adeudo_id'] = $adeudo_pago_online->adeudo_id;
+            $inputCajaLn['usu_alta_id'] = 1;
+            $inputCajaLn['usu_mod_id'] = 1;
+            $cajaLn = CajaLn::create($inputCajaLn);
+            $adeudo_pago_online->caja_ln_id = $cajaLn->id;
+            $adeudo_pago_online->save();
+        } else {
+            $cajaLn = $adeudo_pago_online->cajaLn;
+            //CajaLn::find($adeudo_pago_online->caja_ln_id);
+            $inputCajaLn['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCajaLn['descuento'] = $adeudo_pago_online->descuento;
+            $inputCajaLn['recargo'] = $adeudo_pago_online->recargo;
+            $inputCajaLn['total'] = $adeudo_pago_online->total;
+            $cajaLn->update($inputCajaLn);
+        }
+
+
+        //Se crea registro de pago si no lo tiene
+        if ($adeudo_pago_online->pago_id == 0 or is_null($adeudo_pago_online->pago_id)) {
+            $inputPago['caja_id'] = $caja->id;
+            $inputPago['monto'] = $caja->total;
+            $inputPago['fecha'] = $caja->fecha;
+            $inputPago['forma_pago_id'] = $caja->forma_pago_id;
+            $inputPago['bnd_pagado'] = 0;
+            $inputPago['bnd_referenciado'] = 1;
+            $inputPago['usu_alta_id'] = 1;
+            $inputPago['usu_mod_id'] = 1;
+
+            $consecutivo = ++$plantel->consecutivo_pago;
+            $plantel->save();
+            $inputPago['consecutivo'] = $consecutivo;
+
+            $inputPago['cuenta_efectivo_id'] = $this->getCuentasPlantelFormaPago($caja->forma_pago_id, $caja->plantel_id);
+
+            if ($inputPago['forma_pago_id'] == 1) {
+                $cuenta_efectivo = CuentasEfectivo::find($inputPago['cuenta_efectivo_id']);
+                $cuenta_efectivo->csc_efectivo = $cuenta_efectivo->csc_efectivo + 1;
+                $cuenta_efectivo->save();
+                $input['referencia'] = $cuenta_efectivo->csc_efectivo;
+            }
+            $pago = Pago::create($inputPago);
+
+            $adeudo_pago_online->pago_id = $pago->id;
+            $adeudo_pago_online->save();
+        } else {
+            $pago = $adeudo_pago_online->pago;
+            //Pago::find($adeudo_pago_online->pago_id);
+            $inputPago['monto'] = $caja->total;
+            $inputPago['fecha'] = $caja->fecha;
+            $inputPago['forma_pago_id'] = $caja->forma_pago_id;
+            $inputPago['cuenta_efectivo_id'] = $this->getCuentasPlantelFormaPago($caja->forma_pago_id, $caja->plantel_id);
+            $pago->update($inputPago);
+        }
+
+        //Se genera el registro peticion de pago
+        /*if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
+            $datosMultipagos = array();
+            $datosMultipagos['pago_id'] = $pago->id;
+            $parametros = Param::where('llave', 'mp_account')->first();
+            $datosMultipagos['mp_account'] = $parametros->valor;
+            $datosMultipagos['mp_product'] = $cajaLn->cajaConcepto->cve_multipagos;
+            $datosMultipagos['mp_order'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $caja->id) . $this->formatoDato('000000', $caja->consecutivo);
+            $datosMultipagos['mp_reference'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $pago->id) . $this->formatoDato('000000', $pago->consecutivo);
+
+            $datosMultipagos['mp_node'] = $plantel->cve_multipagos; //VAlor depente del plantel por ahora default
+            $datosMultipagos['mp_concept'] = 1; //Valor depende del caja_conceptos por ahora default
+
+            $datosMultipagos['mp_amount'] = number_format((float) $pago->monto, 2, '.', '');
+
+            $datosMultipagos['mp_customername'] = substr($datos['pagador'], 0, 50);
+            $datosMultipagos['mp_currency'] = 1;
+            $cadenaCifrar = $datosMultipagos['mp_order'] . $datosMultipagos['mp_reference'] . $datosMultipagos['mp_amount'];
+            $parametros = Param::where('llave', 'cifrado_multipagos')->first();
+            $datosMultipagos['mp_signature'] = hash_hmac('sha256', $cadenaCifrar, $parametros->valor);
+            $parametros = Param::where('llave', 'url_success_multipagos')->first();
+            $datosMultipagos['mp_urlsuccess'] = url($parametros->valor);
+            $parametros = Param::where('llave', 'url_fail_multipagos')->first();
+            $datosMultipagos['mp_urlfailure'] = url($parametros->valor);
+            $datosMultipagos['usu_alta_id'] = 1;
+            $datosMultipagos['usu_mod_id'] = 1;
+            $parametros = Param::where('llave', 'url_multipagos')->first();
+            $datosMultipagos['url_peticion'] = $parametros->valor;
+            $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
+            $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
+            $datosMultipagos['navegador'] = $this->getBrowser($_SERVER['HTTP_USER_AGENT']);
+            $datosMultipagos['dispositivo'] = $this->getDispositivo();
+
+            //dd($datosMultipagos);
+            $peticion_multipagos = PeticionMultipago::create($datosMultipagos);
+
+            //Se actualizan los datos en el registro de pagos en linea
+            $adeudo_pago_online->peticion_multipago_id = $peticion_multipagos->id;
+            $adeudo_pago_online->save();
+        } else {
+            //Se actualizan datos multipago cuando repite peticion
+            $peticion_multipagos = $adeudo_pago_online->peticionMultipago;
+            $peticion_multipagos->contador_peticiones++;
+            $peticion_multipagos->save();
+
+
+            $parametros = Param::where('llave', 'mp_account')->first();
+            $datosMultipagos['mp_account'] = $parametros->valor;
+            $datosMultipagos['mp_product'] = $cajaLn->cajaConcepto->cve_multipagos;
+            $datosMultipagos['mp_order'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $caja->id) . $this->formatoDato('000000', $caja->consecutivo);
+            $datosMultipagos['mp_reference'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $pago->id) . $this->formatoDato('000000', $pago->consecutivo);
+
+            $datosMultipagos['mp_node'] = $plantel->cve_multipagos; //VAlor depente del plantel por ahora default
+            $datosMultipagos['mp_concept'] = 1; //Valor depende del caja_conceptos por ahora default
+
+            $datosMultipagos['mp_amount'] = number_format((float) $pago->monto, 2, '.', '');
+            //$cliNombre = $caja->cliente->nombre . " " . $caja->cliente->nombre2 . " " . $caja->cliente->ape_paterno . " " . $caja->cliente->ape_materno;
+            $datosMultipagos['mp_customername'] = substr($datos['pagador'], 0, 50);
+            $datosMultipagos['mp_currency'] = 1;
+            $cadenaCifrar = $datosMultipagos['mp_order'] . $datosMultipagos['mp_reference'] . $datosMultipagos['mp_amount'];
+            $parametros = Param::where('llave', 'cifrado_multipagos')->first();
+            $datosMultipagos['mp_signature'] = hash_hmac('sha256', $cadenaCifrar, $parametros->valor);
+            $parametros = Param::where('llave', 'url_success_multipagos')->first();
+            $datosMultipagos['mp_urlsuccess'] = url($parametros->valor);
+            $parametros = Param::where('llave', 'url_fail_multipagos')->first();
+            $datosMultipagos['mp_urlfailure'] = url($parametros->valor);
+            $datosMultipagos['usu_alta_id'] = 1;
+            $datosMultipagos['usu_mod_id'] = 1;
+            $parametros = Param::where('llave', 'url_multipagos')->first();
+            $datosMultipagos['url_peticion'] = $parametros->valor;
+            $datosMultipagos['mp_paymentmethod'] = $pago->formaPago->cve_multipagos;
+            //dd($adeudo_pago_online);
+            $datosMultipagos['mp_datereference'] = $adeudo_pago_online->fecha_limite->toDateString();
+            $datosMultipagos['navegador'] = $this->getBrowser($_SERVER['HTTP_USER_AGENT']);
+            $datosMultipagos['dispositivo'] = $this->getDispositivo();
+
+            $peticion_multipagos->update($datosMultipagos);
+            //dd($peticion_multipagos);
+        }
+
+        return response()->json([
+            'datos' => $datosMultipagos,
+        ], 200);
+        */
+        if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
+            $datosOpenpay = array();
+            $datosOpenpay['pago_id'] = $pago->id;
+            $datosOpenpay['cliente_id'] = $caja->cliente_id;
+            $datosOpenpay['pname'] = $datos['name'];
+            $datosOpenpay['plast_name'] = $datos['last_name'];
+            $datosOpenpay['pphone_number'] = $datos['phone_number'];
+            $datosOpenpay['pemail'] = $datos['email'];
+            $datosOpenpay['pmethod'] = $pago->formaPago->cve_multipagos;
+            $datosOpenpay['pamount'] = number_format((float) $pago->monto, 2, '.', '');
+            $datosOpenpay['pdescription'] = $cajaLn->cajaConcepto->name;
+            $datosOpenpay['p_send_mail'] = false;
+            $datosOpenpay['pconfirm'] = false;
+            $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
+            //$datosOpenpay['ppreferencia']=;
+            $datosOpenpay['porder_id'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $caja->id) . $this->formatoDato('000000', $caja->consecutivo);
+            $datosOpenpay['usu_alta_id'] = Auth::user()->id;
+            $datosOpenpay['usu_mod_id'] = Auth::user()->id;
+
+            $peticionOpenpay = PeticionOpenpay::create($datosOpenpay);
+
+            if ($peticionOpenpay->pmethod == 'card') {
+                $respuesta = $this->pagoTarjeta($peticionOpenpay, $plantel);
+                return response()->json($respuesta);
+            } elseif ($peticionOpenpay->pmethod == 'bank_account') {
+                $respuesta = $this->pagoBancoNuevo($peticionOpenpay, $plantel);
+                return response()->json($respuesta);
+            } elseif ($peticionOpenpay->pmethod == 'store') {
+                $this->pagoTienda();
+            }
+        } else {
+        }
+    }
+
+    public function pagoTarjeta($peticionOpenpay, $plantel)
+    {
+        try {
+            // create instance OpenPay
+            $ip = Param::where('llave', 'ip_localhost')->first();
+            $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
+            $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+
+            if ($openpay_productivo->valor == 1) {
+                //$openpay->setProductionMode(true);
+                Openpay::setProductionMode(true);
+            } else {
+                //$openpay->setProductionMode(false);
+                Openpay::setProductionMode(false);
+            }
+
+
+            // create object customer
+            $customer = array(
+                'name' => $peticionOpenpay->pname,
+                'last_name' => $peticionOpenpay->plast_name,
+                'email' => $peticionOpenpay->pemail,
+                'phone_number' => $peticionOpenpay->pphone_number,
+            );
+
+            // create object charge
+            $chargeRequest =  array(
+                'method' => $peticionOpenpay->pmethod,
+                'amount' => $peticionOpenpay->pamount,
+                'description' => $peticionOpenpay->pdescription,
+                'customer' => $customer,
+                'send_email' => $peticionOpenpay->psend_mail,
+                'confirm' => $peticionOpenpay->pconfirm,
+                'redirect_url' => $peticionOpenpay->predirect_url,
+                //'order_id' => $peticionOpenpay->porder_id,
+            );
+            $charge = $openpay->charges->create($chargeRequest);
+            //dd($charge);
+            //dd($charge->serializableData['conciliated']);
+            //dd($charge->serializableData);
+            $peticionOpenpay->rid = $charge->id;
+            $peticionOpenpay->rauthorization = $charge->authorization;
+            $peticionOpenpay->rmethod = $charge->method;
+            $peticionOpenpay->roperation_type = $charge->operation_type;
+            $peticionOpenpay->rtransaction_type = $charge->transaction_type;
+            $peticionOpenpay->rstatus = $charge->status;
+            $peticionOpenpay->rconciliated = $charge->conciliated;
+            $peticionOpenpay->rcreation_date = Carbon::parse($charge->creation_date)->format('Y-m-d H:i:s');
+            $peticionOpenpay->roperation_date = Carbon::parse($charge->operation_date)->format('Y-m-d H:i:s');
+            $peticionOpenpay->rdescription = $charge->description;
+            $peticionOpenpay->rerror_message = $charge->error_message;
+            $peticionOpenpay->ramount = $charge->amount;
+            $peticionOpenpay->rcurrency = $charge->currency;
+            $peticionOpenpay->rpayment_method_type = $charge->payment_method->type;
+            $peticionOpenpay->rpayment_method_url = $charge->payment_method->url;
+            $peticionOpenpay->rorder_id = $charge->order_id;
+            //$peticionOpenpay->rcustomer=json_encode($charge->customer);
+            $peticionOpenpay->save();
+            //dd($peticionOpenpay);
+            return array(
+                "method" => $peticionOpenpay->pmethod,
+                'url' => $peticionOpenpay->rpayment_method_url
+            );
+        } catch (OpenpayApiTransactionError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiRequestError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiConnectionError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiAuthError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ]);
+        }
+    }
+
+    public function pagoBancoNuevo($peticionOpenpay, $plantel)
+    {
+
+        try {
+            // create instance OpenPay
+            //dd($peticionOpenpay);
+            $ip = Param::where('llave', 'ip_localhost')->first();
+            $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
+            //dd($openpay);
+            $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+
+            $url_open_pay = "";
+            if ($openpay_productivo->valor == 1) {
+                //$openpay->setProductionMode(true);
+                Openpay::setProductionMode(true);
+                $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+            } else {
+                //$openpay->setProductionMode(false);
+                Openpay::setProductionMode(false);
+                $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+            }
+
+
+            // create object customer
+            $customer = array(
+                'name' => $peticionOpenpay->pname,
+                'last_name' => $peticionOpenpay->plast_name,
+                'email' => $peticionOpenpay->pemail,
+                'phone_number' => $peticionOpenpay->pphone_number,
+                'order_id' => $peticionOpenpay->porder_id,
+            );
+
+            // create object charge
+            $chargeData  =  array(
+                'method' => $peticionOpenpay->pmethod,
+                'amount' => $peticionOpenpay->pamount,
+                'description' => $peticionOpenpay->pdescription,
+                'order_id' => $peticionOpenpay->porder_id,
+                'customer' => $customer,
+                //'send_email' => $peticionOpenpay->psend_mail,
+                //'confirm' => $peticionOpenpay->pconfirm,
+                //'redirect_url' => $peticionOpenpay->predirect_url
+            );
+            //dd($chargeData);
+            $charge = $openpay->charges->create($chargeData);
+            //dd($charge);
+            //dd($charge->serializableData['conciliated']);
+            //dd($charge->serializableData);
+            $peticionOpenpay->rid = $charge->id;
+            $peticionOpenpay->rauthorization = $charge->authorization;
+            $peticionOpenpay->rmethod = $charge->method;
+            $peticionOpenpay->roperation_type = $charge->operation_type;
+            $peticionOpenpay->rtransaction_type = $charge->transaction_type;
+            $peticionOpenpay->rstatus = $charge->status;
+            $peticionOpenpay->rconciliated = $charge->conciliated;
+            $peticionOpenpay->rcreation_date = Carbon::parse($charge->creation_date)->format('Y-m-d H:i:s');
+            //$peticionOpenpay->roperation_date=Carbon::parse($charge->operation_date)->format('Y-m-d H:i:s');
+            $peticionOpenpay->rdescription = $charge->description;
+            $peticionOpenpay->rerror_message = $charge->error_message;
+            $peticionOpenpay->ramount = $charge->amount;
+            $peticionOpenpay->rcurrency = $charge->currency;
+            $peticionOpenpay->rpayment_method_type = $charge->payment_method->type;
+            //$peticionOpenpay->rpayment_method_url=$charge->payment_method->url;
+            $peticionOpenpay->rpayment_method_bank = $charge->payment_method->bank;
+            $peticionOpenpay->rpayment_method_agreement = $charge->payment_method->agreement;
+            $peticionOpenpay->rpayment_method_clabe = $charge->payment_method->clabe;
+            $peticionOpenpay->rpayment_method_name = $charge->payment_method->name;
+            $peticionOpenpay->rorder_id = $charge->order_id;
+            //$peticionOpenpay->rcustomer=json_encode($charge->customer);
+            $peticionOpenpay->save();
+            return array(
+                "method" => $peticionOpenpay->pmethod,
+                'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rid
+            );
+        } catch (OpenpayApiTransactionError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiRequestError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiConnectionError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiAuthError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ]);
+        }
+    }
+
+    public function pagoBancoExistente($peticionExistente, $plantel)
+    {
+        //dd($peticionExistente);
+        try {
+            // create instance OpenPay
+
+            $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+
+            $url_open_pay = "";
+            if ($openpay_productivo->valor == 1) {
+                $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+            } else {
+                $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+            }
+
+            $rid = $peticionExistente->rid;
+            //dd($rid);
+            if (is_null($peticionExistente->rid)) {
+                $rid = $this->buscarOpenpayBanco($peticionExistente, $plantel);
+                //dd($rid);
+            }
+
+            return array(
+                "method" => $peticionExistente->pmethod,
+                'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $rid
+            );
+        } catch (Exception $e) {
+
+            return response()->json([
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ]);
+        }
+    }
+
+    public function buscarOpenpayBanco($peticion, $plantel)
+    {
+        $ip = Param::where('llave', 'ip_localhost')->first();
+        $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
+        //dd($openpay);
+        $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+
+        $url_open_pay = "";
+        if ($openpay_productivo->valor == 1) {
+            //$openpay->setProductionMode(true);
+            Openpay::setProductionMode(true);
+            $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+        } else {
+            //$openpay->setProductionMode(false);
+            Openpay::setProductionMode(false);
+            $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+        }
+
+        $findDataRequest = array(
+            'order_id' => $peticion->porder_id
+        );
+        //dd($findDataRequest);
+
+        $chargeList = $openpay->charges->getList($findDataRequest);
+        $peticion->rid=$chargeList[0]->id;
+        $peticion->save();
+        return $peticion->rid;
+    }
+
+    public function pagoTiendas()
+    {
+    }
+
     public function getCuentasPlantelFormaPago($forma_pago, $plantel)
     {
         $plantel = $plantel;
@@ -904,6 +1497,89 @@ class FichaPagosController extends Controller
         }
     }
 
+    public function successOpenpay($id)
+    {
+        try {
+            //$success = SuccessMultipago::create($crearRegistro);
+            $peticion = PeticionOpenpay::where('rid', $id)->first();
+            if (!is_null($peticion)) {
+                $peticion->bnd_pagado = 1;
+                $peticion->notificacion_pagado = date('Y-m-d H:i:s');
+                $peticion->save();
+                $pago = Pago::find($peticion->pago_id);
+                $caja = Caja::find($pago->caja_id);
+                $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
+                $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
+
+                //dd($peticion->toArray());
+
+
+                $pago->bnd_pagado = 1;
+                $pago->save();
+                $caja = $pago->caja;
+                $caja->st_caja_id = 1;
+                $caja->save();
+                $adeudo->pagado_bnd = 1;
+                $adeudo->save();
+
+                //Generar consecutivo pago simplificado
+                $plantel = Plantel::find($caja->plantel_id);
+                $pago_final = Pago::where('caja_id', '=', $caja->id)->orderBy('id', 'desc')->first();
+                $pagos = Pago::where('caja_id', '=', $caja->id)->orderBy('id', 'desc')->get();
+
+                $mes = Carbon::createFromFormat('Y-m-d', $pago_final->fecha)->month;
+                $anio = Carbon::createFromFormat('Y-m-d', $pago_final->fecha)->year;
+
+                if ($caja->cajaLn->cajaConcepto->bnd_mensualidad == 1 and is_null($pago_final->csc_simplificado)) {
+                    $serie_folio_simplificado = SerieFolioSimplificado::where('cuenta_p_id', $plantel->cuenta_p_id)
+                        ->where('anio', $anio)
+                        ->where('mese_id', 13)
+                        ->where('bnd_activo', 1)
+                        ->where('bnd_fiscal', 1)
+                        ->first();
+                    $serie_folio_simplificado->folio_actual = $serie_folio_simplificado->folio_actual + 1;
+                    $folio_actual = $serie_folio_simplificado->folio_actual;
+                    $serie = $serie_folio_simplificado->serie;
+                    $serie_folio_simplificado->save();
+
+                    $relleno = "0000";
+                    $consecutivo = substr($relleno, 0, 4 - strlen($folio_actual)) . $folio_actual;
+                    foreach ($pagos as $pago) {
+                        $pago->csc_simplificado = $serie . "-" . $consecutivo;
+                        $pago->save();
+                    }
+                } elseif ($caja->cajaLn->cajaConcepto->bnd_mensualidad == 0 and is_null($pago_final->csc_simplificado)) {
+                    $serie_folio_simplificado = SerieFolioSimplificado::where('cuenta_p_id', $plantel->cuenta_p_id)
+                        ->where('anio', $anio)
+                        ->where('mese_id', $mes)
+                        ->where('bnd_activo', 1)
+                        ->where('bnd_fiscal', 0)
+                        ->first();
+                    $serie_folio_simplificado->folio_actual = $serie_folio_simplificado->folio_actual + 1;
+                    $serie_folio_simplificado->save();
+                    $folio_actual = $serie_folio_simplificado->folio_actual;
+                    $mes_prefijo = $serie_folio_simplificado->mes1->abreviatura;
+                    $anio_prefijo = $anio - 2000;
+                    $serie = $serie_folio_simplificado->serie;
+
+
+                    $relleno = "0000";
+                    $consecutivo = substr($relleno, 0, 4 - strlen($folio_actual)) . $folio_actual;
+                    foreach ($pagos as $pago) {
+                        $pago->csc_simplificado = $serie . "-" . $mes_prefijo . $anio_prefijo . "-" . $consecutivo;
+                        $pago->save();
+                    }
+                }
+                //Fin crear consecutivo simplificado
+
+            }
+        } catch (Exception $e) {
+            dd($e);
+            Log::info($e->getMessage());
+        }
+        return redirect()->route('fichaAdeudos.index');
+    }
+
     public function imprimir(Request $request)
     {
         $data = $request->all();
@@ -960,6 +1636,7 @@ class FichaPagosController extends Controller
             //dd($adeudo->toArray());
 
         }
+
 
         $formatter = new NumeroALetras;
         $totalEntero = intdiv($caja->total, 1);
@@ -1310,7 +1987,7 @@ class FichaPagosController extends Controller
                     )
                 );
             }
-            Log::info($objetosArray);
+            //Log::info($objetosArray);
             //dd($objetosArray);
             $result = $client->GenerarCFDI($objetosArray)->GenerarCFDIResult;
             //dd($result);
@@ -1621,7 +2298,7 @@ class FichaPagosController extends Controller
         $customMessages = [
             'required' => 'El campo es obligatorio, capturar un valor.'
         ];
-        $request->validate($rules, $customMessages);
+        //$request->validate($rules, $customMessages);
         //dd($v);
         $adeudoPagoOnLine = AdeudoPagoOnLine::find($id);
 
@@ -1789,8 +2466,12 @@ class FichaPagosController extends Controller
         $cliente->update($datos);
         $plantel = $adeudoPagoOnLine->cliente->plantel;
         $pago = $adeudoPagoOnLine->pago;
+        if (!is_null($pago->uuid)) {
+            dd("No es posible facturar, presentarse en Caja");
+        }
+        //dd('no mandar factura');
         $serie_folio = explode("-", $pago->csc_simplificado);
-        if(is_null($pago->csc_simplificado)){
+        if (is_null($pago->csc_simplificado)) {
             dd("problema con el consecutivo simplificado");
         }
         $caja = $adeudoPagoOnLine->caja;
@@ -1802,18 +2483,19 @@ class FichaPagosController extends Controller
         $parametroFactPrbActiva = Param::where('llave', 'fact_prb_activa')->first();
         $url = $parametroUrl->valor;
         //dd($url);
-        $cuenta = $plantel->matriz->fact_gobal_id_cuenta;
+        $cuenta = $plantel->matriz->fact_global_id_cuenta;
+
         $cuenta_password = $plantel->matriz->fact_global_pass_cuenta;
-        if($parametroFactPrbActiva->valor==2){
-            $p_cuenta=Param::where('llave','fact_global_id_cuenta_prb')->first();
-            $p_cuenta_password=Param::where('llave','fact_global_pass_cuenta_prb')->first();
-            $cuenta=$p_cuenta->valor;
-            $cuenta_password=$p_cuenta_password->valor;
+        if ($parametroFactPrbActiva->valor == 2) {
+            $p_cuenta = Param::where('llave', 'fact_global_id_cuenta_prb')->first();
+            $p_cuenta_password = Param::where('llave', 'fact_global_pass_cuenta_prb')->first();
+            $cuenta = $p_cuenta->valor;
+            $cuenta_password = $p_cuenta_password->valor;
         }
 
-        
+
         try {
-            
+
             $fecha_solicitud_factura_tabla = date('Y-m-d H:i:s');
             $fecha_solicitud_factura_service = date('Y-m-d\TH:i:s');
 
@@ -1839,7 +2521,7 @@ class FichaPagosController extends Controller
             $objetosArray = array();
             //dd($adeudo->combinacionCliente->grado_id);
             if ($adeudo->combinacionCliente->grado->clave_servicio == "86121600") {
-                $descripcion=$caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio;
+                $descripcion = $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio;
                 /*$objetosArray = array(
 
                     'cfdi' => array(
@@ -1928,11 +2610,11 @@ class FichaPagosController extends Controller
                     )
                 );*/
             } elseif ($adeudo->combinacionCliente->grado->clave_servicio == "86121700") {
-                $descripcion=$cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno . PHP_EOL .
-                $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio . PHP_EOL .
-                $adeudo->combinacionCliente->grado->name . PHP_EOL .
-                "CURP: " . $cliente->curp . PHP_EOL .
-                "RVOE: " . $adeudo->combinacionCliente->grado->rvoe;
+                $descripcion = $cliente->nombre . " " . $cliente->nombre2 . " " . $cliente->ape_paterno . " " . $cliente->ape_materno . " " .
+                    $caja->cajaLn->cajaConcepto->leyenda_factura . " " . $fecha_anio . " " .
+                    $adeudo->combinacionCliente->grado->name . " " .
+                    "CURP: " . $cliente->curp . " " .
+                    "RVOE: " . $adeudo->combinacionCliente->grado->rvoe;
                 /*$objetosArray = array(
                     'cfdi' => array(
                         'Addenda' => array(
@@ -2078,7 +2760,7 @@ class FichaPagosController extends Controller
                         'Cantidad' => '1',
                         'ClaveProdServ' => $adeudo->combinacionCliente->grado->clave_servicio, //Definir valor defaul de acuerdo al SAT
                         'ClaveUnidad' => 'E48',
-                        'NoIdentificacion'=>$caja->cajaLn->caja_concepto_id,
+                        'NoIdentificacion' => $caja->cajaLn->caja_concepto_id,
                         'Unidad' => 'Servicio', //Definir valor default
                         'Descripcion' => $descripcion,
                         'ObjetoImp' => "02", //Campo nuevo
@@ -2103,7 +2785,7 @@ class FichaPagosController extends Controller
                     'SubTotal' => number_format($total_pagos, 2, '.', ''),
                     'Total' => number_format($total_pagos, 2, '.', '')
                 )
-                );
+            );
 
             //dd($objetosArray);
 
@@ -2121,7 +2803,7 @@ class FichaPagosController extends Controller
                 'Sello' => '',
                 'FormaPago' => $objetosArray['cfdi']['FormaPago'],
                 'CondicionesDePago' => 'CONTADO',
-                'TipoCambio'=>1,
+                'TipoCambio' => 1,
                 'SubTotal' => $objetosArray['cfdi']['SubTotal'],
                 'Moneda' => $objetosArray['cfdi']['Moneda'],
                 'Total' => $objetosArray['cfdi']['Total'],
@@ -2137,13 +2819,17 @@ class FichaPagosController extends Controller
                 'RegimenFiscal' => $objetosArray['cfdi']['Emisor']['RegimenFiscal']
             );
 
+            //dd($objetosArray['cfdi']);
+
             $receptor = array(
-                'Rfc' => $objetosArray['cfdi']['Receptor']['Rfc'],
-                'Nombre' => $objetosArray['cfdi']['Receptor']['Nombre'],
-                'DomicilioFiscalReceptor' => $objetosArray['cfdi']['Receptor']['DomicilioFiscalReceptor'], //Por definir
+                'Rfc' => strtoupper($objetosArray['cfdi']['Receptor']['Rfc']),
+                'Nombre' => strtoupper($objetosArray['cfdi']['Receptor']['Nombre']),
+                'DomicilioFiscalReceptor' => strtoupper($objetosArray['cfdi']['Receptor']['DomicilioFiscalReceptor']), //Por definir
                 'UsoCFDI' => $objetosArray['cfdi']['Receptor']['UsoCFDI'], //Por definir
                 'RegimenFiscalReceptor' => $objetosArray['cfdi']['Receptor']['RegimenFiscalReceptor'], //Por definir
             );
+
+            //dd($receptor);
 
             $concepto = array(
                 'ClaveProdServ' => $objetosArray['cfdi']['Conceptos']['Concepto40R']['ClaveProdServ'],
@@ -2179,6 +2865,8 @@ class FichaPagosController extends Controller
             //Log::info($objetosArray);
             $xmlFactura = $this->crearXmlFactura40($comprobante, $fecha_solicitud_factura_service, $emisor, $receptor, $concepto, $impuestos);
             //dd($xmlFactura);
+            Log::info($xmlFactura);
+
             $data = array();
             //dd($parametroFactPrbActiva->valor);
             if ($parametroFactPrbActiva->valor == 1) {
@@ -2193,7 +2881,7 @@ class FichaPagosController extends Controller
                 header('Cache-Control: private');
                 echo $xmlFactura;
                 dd("aqui ya descargo");
-            }else if($parametroFactPrbActiva->valor==2){
+            } else if ($parametroFactPrbActiva->valor == 2) {
                 $data = array(
                     "cti" => $cuenta,
                     "pwd" => $cuenta_password,
@@ -2215,15 +2903,21 @@ class FichaPagosController extends Controller
                 $objR = json_decode($response->getBody()->getContents());
                 //dd($objR);
                 if ($objR->success == 0) {
-                    
-                    
+
+
                     $destinatario = "linares82@gmail.com";
                     $n = Auth::user()->name;
                     $asunto = "Problema Facturacion";
-                    $contenido = $objR->message;
+                    if (isset($objR->message)) {
+                        $contenido = $objR->message . $xmlFactura;
+                    }
+                    if (isset($objR->data)) {
+                        $contenido = $objR->data . $xmlFactura;
+                    }
                     $from = "ohpelayo@gmail.com";
+                    $contenido = $contenido . " " . $xmlFactura;
+                    $contenido = $contenido . ' ' . $cuenta . " " . $cuenta_password;
 
-                    
 
                     $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
                     $r = \Mail::send('correos.errorApiFiolsDigitales', $data, function ($message)
@@ -2233,8 +2927,8 @@ class FichaPagosController extends Controller
                         $message->replyTo($from);
                     });
 
+                    Log::info($contenido);
                     dd($objR);
-                     
                 } else {
                     $pagos1 = Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
                     foreach ($pagos1 as $pago1) {
@@ -2258,20 +2952,25 @@ class FichaPagosController extends Controller
                             //"body"=>"Cuerpo del mensaje de correo (opcional)",
                             //"tpo"=>"cfdi/cr (opcional)",
                             //"res"=>"(Opcional) tipo de resultado deseado",
+                            "res" => "both",
                             //"pln"=>"(Opcional) Identificador de plantilla de representación impresa"
                         );
-                        $client = new Client(['base_uri' => $url->valor]);
+                        $client = new Client(['base_uri' => $url]);
                         $response = $client->post("enviar/", [
                             // un array con la data de los headers como tipo de peticion, etc.
                             //'headers' => ['foo' => 'bar'],
                             // array de datos del formulario
-                            'json' => $data
+                            //'json' => $data
+                            'form_params' => $data
                         ]);
-                        if ($response->success == 0){
-                            dd($response);
-                        }
-                        Log::info($response);
-                        //return back();
+                        $objR = json_decode($response->getBody()->getContents());
+                        /*if($objR->success==0){
+                            Log::info('uuid: '.$pago1->uuid.' Peticion de correo fallida');
+                            echo 'Problema en el envio a su correo, pero puede descargar sus archivos xml y pdf lista de pagos realizados.';
+                            echo "<a href=\"{{route('fichaAdeudos.index')\"}} > ir a lista de pagos realizados </a>";
+                        }else{
+                            Log::info('uuid: '.$pago1->uuid.' Peticion de correo exitosa');
+                        }*/
                     }
                 }
             } else {
@@ -2282,8 +2981,9 @@ class FichaPagosController extends Controller
                     "ncer" => "",
                     "nb64" => "false",
                     "xml" => base64_encode($xmlFactura)
+                    //"xml" => $xmlFactura
                 );
-
+                //dd($data);
                 $client = new Client(['base_uri' => $url]);
                 $response = $client->post("sellar-y-timbrar/", [
                     // un array con la data de los headers como tipo de peticion, etc.
@@ -2298,9 +2998,15 @@ class FichaPagosController extends Controller
                     $destinatario = "linares82@gmail.com";
                     $n = Auth::user()->name;
                     $asunto = "Problema Folios Digitales";
-                    $contenido = $objR->message;
+                    if (isset($objR->message)) {
+                        $contenido = $objR->message . $xmlFactura;
+                    }
+                    if (isset($objR->data)) {
+                        $contenido = $objR->data . $xmlFactura;
+                    }
                     $from = "ohpelayo@gmail.com";
-
+                    $contenido = $contenido . " " . $xmlFactura;
+                    $contenido = $contenido . ' ' . $cuenta . " " . $cuenta_password;
                     //dd(env('MAIL_FROM_ADDRESS'));
 
                     $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
@@ -2311,6 +3017,7 @@ class FichaPagosController extends Controller
                         $message->replyTo($from);
                     });
 
+                    Log::info($contenido);
                     dd($objR);
                 } else {
                     $pagos1 = Pago::where('caja_id', $adeudo->caja_id)->whereNull('deleted_at')->get();
@@ -2321,10 +3028,11 @@ class FichaPagosController extends Controller
 
                         $pago1->save();
 
+
                         //Envio de correo por parte del proveedor
                         $data = array(
-                            "uid" => $cuenta,
-                            "pwd" => $cuenta_password,
+                            "uid" => $pago1->caja->plantel->matriz->fact_global_id_usu,
+                            "pwd" => $pago1->caja->plantel->matriz->fact_global_pass_usu,
                             "doc" => $pago1->uuid,
                             "to" => $cliente->fmail,
                             //"from": "Nombre para mostrar del remitente (opcional)",
@@ -2335,24 +3043,29 @@ class FichaPagosController extends Controller
                             //"body"=>"Cuerpo del mensaje de correo (opcional)",
                             //"tpo"=>"cfdi/cr (opcional)",
                             //"res"=>"(Opcional) tipo de resultado deseado",
+                            "res" => "both",
                             //"pln"=>"(Opcional) Identificador de plantilla de representación impresa"
                         );
-                        $client = new Client(['base_uri' => $url->valor]);
+                        $client = new Client(['base_uri' => $url]);
                         $response = $client->post("enviar/", [
                             // un array con la data de los headers como tipo de peticion, etc.
                             //'headers' => ['foo' => 'bar'],
                             // array de datos del formulario
-                            'json' => $data
+                            //'json' => $data
+                            'form_params' => $data
                         ]);
-                        if ($response->success == 0){
-                            dd($response);
-                        }
-                        Log::info($response);
-                        //return back();
+
+                        $objR = json_decode($response->getBody()->getContents());
+                        /*if($objR->success==0){
+                            Log::info('uuid: '.$pago1->uuid.' Peticion de correo fallida');
+                            echo 'Problema en el envio a su correo, pero puede descargar sus archivos xml y pdf lista de pagos realizados.';
+                            echo "<a href=\"{{route('fichaAdeudos.index')\"}} > ir a lista de pagos realizados </a>";
+                        }else{
+                            Log::info('uuid: '.$pago1->uuid.' Peticion de correo exitosa');
+                        }*/
                     }
                 }
             }
-
         } catch (\Exception $e) {
             //echo $e->getMessage();
             //dd($e);
@@ -2361,7 +3074,8 @@ class FichaPagosController extends Controller
             $asunto = "Problema Facturacion error try catch";
             $contenido = $e->getMessage();
             $from = "ohpelayo@gmail.com";
-
+            $contenido = $contenido;
+            $contenido = $contenido . ' ' . $cuenta . " " . $cuenta_password;
             //dd(env('MAIL_FROM_ADDRESS'));
 
             $data = array('contenido' => $contenido, 'nombre' => $n, 'correo' => $from);
@@ -2382,76 +3096,76 @@ class FichaPagosController extends Controller
     public function getFacturaPdfByUuid40(Request $request)
     {
         $datos = $request->all();
-		$pago = Pago::where('uuid',$datos['uuid']);
-		$url_aux = Param::where('llave', 'fact_global_url')->first();
-		$url = $url_aux->valor . "descargar/";
-		//dd($url);
-		$fact_prb_activa = Param::where('llave', 'fact_prb_activa')->first();
+        $pago = Pago::where('uuid', $datos['uuid'])->first();
+        $url_aux = Param::where('llave', 'fact_global_url')->first();
+        $url = $url_aux->valor . "descargar/";
+        //dd($url);
+        $fact_prb_activa = Param::where('llave', 'fact_prb_activa')->first();
 
-		$data = array();
+        $data = array();
 
-		if ($fact_prb_activa->valor == 1) {
-			$fact_global_id_usu_prb = Param::where('llave', 'fact_global_id_usu_prb')->first();
-			$fact_global_pass_usu_prb = Param::where('llave', 'fact_global_pass_usu_prb')->first();
-			$data = array(
-				"uid" => $fact_global_id_usu_prb->valor,
-				"pwd" => $fact_global_pass_usu_prb->valor,
-				"doc" => $pago->uuid,
-				"res" => "ziplnk",
-				"tpo" => "",
-				"pln" => ""
-			);
-		} else {
-			$data = array(
-				"uid" => $pago->caja->plantel->matriz->fact_global_id_usu,
-				"pwd" => $pago->caja->plantel->matriz->fact_global_pass_usu,
-				"doc" => $pago->uuid,
-				"res" => "ziplnk",
-				"tpo" => "",
-				"pln" => ""
-			);
-		}
+        if ($fact_prb_activa->valor == 1) {
+            $fact_global_id_usu_prb = Param::where('llave', 'fact_global_id_usu_prb')->first();
+            $fact_global_pass_usu_prb = Param::where('llave', 'fact_global_pass_usu_prb')->first();
+            $data = array(
+                "uid" => $fact_global_id_usu_prb->valor,
+                "pwd" => $fact_global_pass_usu_prb->valor,
+                "doc" => $pago->uuid,
+                "res" => "ziplnk",
+                "tpo" => "",
+                "pln" => ""
+            );
+        } else {
+            $data = array(
+                "uid" => $pago->caja->plantel->matriz->fact_global_id_usu,
+                "pwd" => $pago->caja->plantel->matriz->fact_global_pass_usu,
+                "doc" => $pago->uuid,
+                "res" => "ziplnk",
+                "tpo" => "",
+                "pln" => ""
+            );
+        }
 
-		//dd($data);
-		$opciones = array(
-			"http" => array(
-				"header" => "Content-type: application/x-www-form-urlencoded\r\n",
-				"method" => "POST",
-				"content" => http_build_query($data), # Agregar el contenido definido antes
-			),
-		);
-		# Preparar petición
-		$contexto = stream_context_create($opciones);
+        //dd($data);
+        $opciones = array(
+            "http" => array(
+                "header" => "Content-type: application/x-www-form-urlencoded\r\n",
+                "method" => "POST",
+                "content" => http_build_query($data), # Agregar el contenido definido antes
+            ),
+        );
+        # Preparar petición
+        $contexto = stream_context_create($opciones);
 
-		//*****para ver el flujo durante la invocación
-		$flujo = fopen($url, 'r', false, $contexto);
-		stream_set_blocking($flujo, false);
-		//***************
+        //*****para ver el flujo durante la invocación
+        $flujo = fopen($url, 'r', false, $contexto);
+        stream_set_blocking($flujo, false);
+        //***************
 
-		//*******************respuestas en formato json
-		$resultado = file_get_contents($url, false, $contexto);
-		//dd($contexto);
+        //*******************respuestas en formato json
+        $resultado = file_get_contents($url, false, $contexto);
+        //dd($contexto);
 
-		$data = json_decode($resultado, true);
+        $data = json_decode($resultado, true);
 
-		echo json_encode($data);
+        echo json_encode($data);
 
-		if ($data["success"] == false) {
-			echo "Error:" . $data["message"];
-			exit;
-		}
+        if ($data["success"] == false) {
+            echo "Error:" . $data["message"];
+            exit;
+        }
 
-		# si fue existoso
-		if ($data["success"] == true) {
-			/*echo "<br>";
+        # si fue existoso
+        if ($data["success"] == true) {
+            /*echo "<br>";
 			echo "<br>";
 			echo "<label>Puede descargar el zip dando click en el botón </label>";
 			echo "<a href='".$data["data"]["link"]."'><button style='background:green;'>Descargar</button></a>";
 			*/
-			return redirect()->away($data["data"]["link"]);
-		} {
-			dd('Recurso no encontrado');
-		}
+            return redirect()->away($data["data"]["link"]);
+        } {
+            dd('Recurso no encontrado');
+        }
     }
 
     public function crearXmlFactura40($comprobante, $fecha_solicitud_factura_service, $emisor, $receptor, $concepto, $impuestos)
@@ -2465,6 +3179,7 @@ class FichaPagosController extends Controller
         $objetoXML->startDocument('1.0', 'utf-8');
 
         $objetoXML->startElement("cfdi:Comprobante");
+
         $objetoXML->writeAttribute("Version", $comprobante["Version"]);
         $objetoXML->writeAttribute("xmlns:xsi", $comprobante["xmlns:xsi"]);
         $objetoXML->writeAttribute("xmlns:cfdi", $comprobante["xmlns:cfdi"]);
@@ -2492,6 +3207,7 @@ class FichaPagosController extends Controller
         $objetoXML->writeAttribute("RegimenFiscal", $emisor["RegimenFiscal"]);
         $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
 
+        //dd($receptor);
         $objetoXML->startElement('cfdi:Receptor');
         $objetoXML->writeAttribute("Rfc", $receptor["Rfc"]);
         $objetoXML->writeAttribute("Nombre", $receptor["Nombre"]);
@@ -2502,40 +3218,43 @@ class FichaPagosController extends Controller
 
         $objetoXML->startElement('cfdi:Conceptos');
         //foreach ($conceptos as $concepto) {
-            $objetoXML->startElement('cfdi:Concepto');
-                $objetoXML->writeAttribute("ClaveProdServ", $concepto["ClaveProdServ"]);
-                $objetoXML->writeAttribute("NoIdentificacion", $concepto["NoIdentificacion"]);
-                $objetoXML->writeAttribute("Cantidad", $concepto["Cantidad"]);
-                $objetoXML->writeAttribute("ClaveUnidad", $concepto["ClaveUnidad"]);
-                //$objetoXML->writeAttribute("Unidad", $concepto["Unidad"]);
-                $objetoXML->writeAttribute("Descripcion", $concepto["Descripcion"]);
-                $objetoXML->writeAttribute("ValorUnitario", $concepto["ValorUnitario"]);
-                $objetoXML->writeAttribute("Importe", $concepto["Importe"]);
-                $objetoXML->writeAttribute("ObjetoImp", $concepto["ObjetoImp"]);
-                $objetoXML->startElement('cfdi:Impuestos');
-                    $objetoXML->startElement('cfdi:Traslados');
-                        $objetoXML->startElement('cfdi:Traslado');
-                        $objetoXML->writeAttribute("Base", $concepto["Base"]);
-                        $objetoXML->writeAttribute("Impuesto", $concepto["Impuesto"]);
-                        $objetoXML->writeAttribute("TipoFactor", $concepto["TipoFactor"]);
-                    $objetoXML->endElement();
-                $objetoXML->endElement();
-                $objetoXML->startElement('cfdi:ComplementoConcepto');
-                    $objetoXML->startElement('iedu:instEducativas');
-                    $objetoXML->writeAttribute("Version", "1.0");
-                    $objetoXML->writeAttribute("nombreAlumno", $concepto["NombreAlumno"]);
-                    $objetoXML->writeAttribute("CURP", $concepto["CURP"]);
-                    $objetoXML->writeAttribute("nivelEducativo", $concepto["NivelEducativo"]);
-                    $objetoXML->writeAttribute("autRVOE", $concepto["AutRVOE"]);
-                    $objetoXML->writeAttribute("rfcPago", $concepto["RfcPago"]);
-                $objetoXML->endElement();
-            $objetoXML->endElement();
-        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
-
-        //}
-        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros técnicos.
+        $objetoXML->startElement('cfdi:Concepto');
+        $objetoXML->writeAttribute("ClaveProdServ", $concepto["ClaveProdServ"]);
+        $objetoXML->writeAttribute("NoIdentificacion", $concepto["NoIdentificacion"]);
+        $objetoXML->writeAttribute("Cantidad", $concepto["Cantidad"]);
+        $objetoXML->writeAttribute("ClaveUnidad", $concepto["ClaveUnidad"]);
+        //$objetoXML->writeAttribute("Unidad", $concepto["Unidad"]);
+        $objetoXML->writeAttribute("Descripcion", $concepto["Descripcion"]);
+        $objetoXML->writeAttribute("ValorUnitario", $concepto["ValorUnitario"]);
+        $objetoXML->writeAttribute("Importe", $concepto["Importe"]);
+        $objetoXML->writeAttribute("ObjetoImp", $concepto["ObjetoImp"]);
         $objetoXML->startElement('cfdi:Impuestos');
-        $objetoXML->writeAttribute("TotalImpuestosTrasladados", $impuestos["TotalImpuestosTrasladados"]);
+        $objetoXML->startElement('cfdi:Traslados');
+        $objetoXML->startElement('cfdi:Traslado');
+        $objetoXML->writeAttribute("Base", $concepto["Base"]);
+        $objetoXML->writeAttribute("Impuesto", $concepto["Impuesto"]);
+        $objetoXML->writeAttribute("TipoFactor", $concepto["TipoFactor"]);
+        $objetoXML->endElement(); //Fin traslado
+        $objetoXML->endElement(); //Fin traslados
+        $objetoXML->endElement(); //Fin Impuestos
+        if ($concepto["NivelEducativo"] <> "Licenciatura") { //27-01-2023 se diferencia Licenciatura por que no lleva complemento y bachillerato si lleva
+            $objetoXML->startElement('cfdi:ComplementoConcepto');
+            $objetoXML->startElement('iedu:instEducativas');
+            $objetoXML->writeAttribute("version", "1.0");
+            $objetoXML->writeAttribute("nombreAlumno", $concepto["NombreAlumno"]);
+            $objetoXML->writeAttribute("CURP", $concepto["CURP"]);
+            $objetoXML->writeAttribute("nivelEducativo", $concepto["NivelEducativo"]);
+            $objetoXML->writeAttribute("autRVOE", $concepto["AutRVOE"]);
+            $objetoXML->writeAttribute("rfcPago", $concepto["RfcPago"]);
+            $objetoXML->endElement(); // Fin InsEducativas
+            $objetoXML->endElement(); //Fin Complemento
+        }
+        $objetoXML->endElement(); // Fin concepto
+
+        $objetoXML->endElement(); // fin conceptos
+
+        $objetoXML->startElement('cfdi:Impuestos');
+        //$objetoXML->writeAttribute("TotalImpuestosTrasladados", $impuestos["TotalImpuestosTrasladados"]); //modificacion 16.08.2023
         $objetoXML->startElement('cfdi:Traslados');
         $objetoXML->startElement('cfdi:Traslado');
         $objetoXML->writeAttribute("Base", $impuestos["Base"]);
@@ -2543,16 +3262,17 @@ class FichaPagosController extends Controller
         $objetoXML->writeAttribute("TipoFactor", $impuestos["TipoFactor"]);
         //$objetoXML->writeAttribute("TasaOCuota", $impuestos["TasaOCuota"]);
         //$objetoXML->writeAttribute("Importe", $impuestos["Importe"]);
-        $objetoXML->endElement();
-        $objetoXML->endElement();
-        $objetoXML->endElement();
+        $objetoXML->endElement(); //Fin traslado
+        $objetoXML->endElement(); //Fin traslados
+        $objetoXML->endElement(); //Fin impuestos
+        $objetoXML->fullEndElement(); //
 
-        $objetoXML->fullEndElement(); // Final del elemento "obra" que cubre cada obra de la matriz.
-        $objetoXML->endElement(); // Final del nodo raíz, "obras"
         $objetoXML->endDocument(); // Final del documento
 
         $content = $objetoXML->outputMemory();
-        return $content;
+
+        //dd(mb_convert_encoding( $content, 'ISO-8859-1','HTML-ENTITIES'));
+        return mb_convert_encoding($content, 'ISO-8859-1', 'HTML-ENTITIES');
     }
 
     public function validaEntregaDocs3Meses($cliente)

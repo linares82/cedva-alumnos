@@ -12,16 +12,24 @@ use Illuminate\Http\Request;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-
+/*
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
-
+*/
 Route::post(
     '/multipagos/successMultipagos',
     array(
         'as' => 'fichaAdeudos.successMultipagos',
         'uses' => 'FichaPagosController@successMultipagos',
+    )
+)->middleware('corsMultipagos');
+
+Route::post(
+    '/multipagos/successOpenpay',
+    array(
+        'as' => 'fichaAdeudos.successOpenpay',
+        'uses' => 'FichaPagosController@successOpenpay',
     )
 )->middleware('corsMultipagos');
 

@@ -45,10 +45,12 @@
 
     </div>
     <div class="col-md-12 alert alert-block alert-success">
-        Les recordamos que en caso de requerir factura esto lo puede hacer durante las 72 hrs siguientes después de realizar su pago. Cualquier duda estamos a sus ordenes en el correo facturacion@grupocedva.com
+        Les recordamos que en caso de requerir factura esto lo puede hacer durante las 48 hrs siguientes despues de realizar su pago.
     </div>
 
-    @if($cliente->bnd_doc_oblig_entregados==1 or $cli_funciones->validaEntregaDocs3Meses($cliente->id))
+    @if(($cliente->bnd_doc_oblig_entregados==1 or $cli_funciones->validaEntregaDocs3Meses($cliente->id)) or
+    $cliente->plantel->bnd_excepcion_documentos==1
+    )
     <div class="col-md-12">
         @php
             $j=0;
@@ -130,6 +132,7 @@
                                     <td>
 
                                         @php
+
                                         $peticion=$adeudo->pagoOnLine->peticionMultipago;
                                         $respuesta_msj="";
                                         if(!is_null($peticion)){
@@ -162,38 +165,42 @@
                                         ->count();
                                         $hoy=DateTime::createFromFormat('Y-m-d', date('Y-m-d'));
                                         //Se agregan 10 dias la fecha de pago por q no siempre existe fecha en el pago en linea
-                                        $fecha_adeudo=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDays(9);    
+                                        $fecha_adeudo=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->fecha_pago)->addDays(9);
                                         //dd($fecha_adeudo);
-                                        
+
                                         $pago_adelantado=$hoy<$fecha_adeudo;
-                                        
+
+                                        //echo $adeudo->combinacionCliente->grado->seccion;
                                         @endphp
 
 
-                                        @if($adeudos_no_mensualidad>0 and !$pago_adelantado)
+                                        @if($adeudos_no_mensualidad>0 /*and !$pago_adelantado*/)
                                         Adeudo pendiente comunicarse al plantel
+
                                         @endif
-                                        
+
                                         @if($adeudo->pagado_bnd==1)
                                             <span class="badge badge-success"><i class="ace-icon fa fa-check"></i>SI</span>
                                         @elseif($adeudo->pagado_bnd==0 and
                                                 isset(optional($adeudo->pagoOnLine)->total) and
                                                 //$adeudo->fecha_pago>date('Y-m-d') and
                                                 $fecha_adeudo>date('Y-m-d') and
-                                                $existe_seccion_valida==1)<!--// and
-                                                //($adeudos_no_mensualidad==0 or ($adeudos_no_mensualidad==1 and $pago_adelantado)))-->
+                                                $existe_seccion_valida==1 and
+                                                $adeudos_no_mensualidad==0)<!-- or ($adeudos_no_mensualidad==1 and $pago_adelantado)))-->
                                             <span class="badge badge-warning"><i class="glyphicon glyphicon-remove"></i></i>NO-{{ $respuesta_msj }} </span>
                                             @if($bandera_pagar_en_linea==0)
                                                 <!--@@if(optional($peticion)->mp_paymentmethod=="SUC")
                                                 <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @@else @@if(!isset($peticion)) -->
-                                                <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                                <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea M.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
                                                 <!--@@endif-->
                                             @endif
                                             @php
                                                 $bandera_pagar_en_linea=1;
                                             @endphp
                                         <!--<button type="button" class="btn btn-pink btn-xs btnCrearCajaPagoPeticion" data-adeudo_pago_on_line="{{ optional($adeudo->pagoOnLine)->id}}">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></button>-->
+
                                         @elseif($adeudo->pagado_bnd==0 and
                                                 isset(optional($adeudo->pagoOnLine)->total) and
                                                 $existe_seccion_valida==1 and
@@ -204,7 +211,8 @@
                                             <!--@@if(optional($peticion)->mp_paymentmethod=="SUC")
                                             <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                             @@else@if(!isset($peticion))-->
-                                            <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
+                                            <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea M.<i class="ace-icon fa fa-credit-card"></i></a>
+                                            <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
                                             <!--@@endif-->
                                             @endif
                                             @php
@@ -238,27 +246,27 @@
                                             $fechaPago=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $adeudo->caja->pago->updated_at);
                                             $fechaHoy=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s'));
                                             //dd($fechaPago->diffInHours($fechaHoy));
-
                                             @endphp
 
                                             @if(is_null($adeudo->caja->pago->uuid) and
                                                 is_null($adeudo->caja->pago->cbb) and
                                                 is_null($adeudo->caja->pago->xml) and
                                                 $mesHoy==$mesFechaPago and
-                                                $anioHoy==$anioFechaPago and
-                                                $fechaPago->diffInHours($fechaHoy)<=72)
+                                                $anioHoy==$anioFechaPago
+                                                //$fechaPago->diffInHours($fechaHoy)<=72
+                                                )
                                                 <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">
                                                     Facturar
                                                     <i class="ace-icon fa fa-money align-top bigger-125 icon-on-right"></i>
                                                 </a>
                                             @elseif(!is_null($adeudo->caja->pago->uuid) and
-                                                    !is_null($adeudo->caja->pago->cbb) and
+                                                    //!is_null($adeudo->caja->pago->cbb) and
                                                     !is_null($adeudo->caja->pago->xml))
                                                 @php
                                                     $fact_40_activa=\App\Param::where('llave', 'fact_40_activa')->first();
                                                 @endphp
                                                 @if($fact_40_activa->valor==0)
-                                                <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
+                                                <a href="{{ route('fichaAdeudos.getFacturaPdfByUuid40', array('uuid'=>$adeudo->pagoOnLine->pago->uuid)) }}" target="_blank" class="btn btn-white btn-success btn-xs">
                                                     <i class="ace-icon fa fa-download"></i> Pdf
                                                 </a>
 
