@@ -1000,6 +1000,7 @@ class FichaPagosController extends Controller
             $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
             //$datosOpenpay['ppreferencia']=;
             $datosOpenpay['porder_id'] = $this->formatoDato('000', $caja->plantel_id) . $this->formatoDato('000000000', $caja->id) . $this->formatoDato('000000', $caja->consecutivo);
+            $datosOpenpay['fecha_limite'] = $adeudo_pago_online->fecha_limite->toDateString();
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;
 
@@ -1052,7 +1053,7 @@ class FichaPagosController extends Controller
                 'send_email' => $peticionOpenpay->psend_mail,
                 'confirm' => $peticionOpenpay->pconfirm,
                 'redirect_url' => $peticionOpenpay->predirect_url,
-                //'order_id' => $peticionOpenpay->porder_id,
+                'order_id' => $peticionOpenpay->porder_id,
             );
             $charge = $openpay->charges->create($chargeRequest);
             //dd($charge);
@@ -1180,6 +1181,7 @@ class FichaPagosController extends Controller
                 'description' => $peticionOpenpay->pdescription,
                 'order_id' => $peticionOpenpay->porder_id,
                 'customer' => $customer,
+                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i',$peticionOpenpay->fecha_limite)->toISOString()
                 //'send_email' => $peticionOpenpay->psend_mail,
                 //'confirm' => $peticionOpenpay->pconfirm,
                 //'redirect_url' => $peticionOpenpay->predirect_url
