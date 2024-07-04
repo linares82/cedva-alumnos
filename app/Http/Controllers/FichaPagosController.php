@@ -569,10 +569,37 @@ class FichaPagosController extends Controller
         //dd($navegador."-".$dispositivo);
 
         $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
+        //dd($adeudo_pago_online);
         $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
+
+        $peticiones_card=0;
+        $peticiones_bank=0;
+        if(!is_null($adeudo_pago_online->pago_id) or $adeudo_pago_online->pago_id>0){
+            $peticionOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->first();
+
+            if(!is_null($peticionOpenpay) and $peticionOpenpay->rid<>"completed"){
+                $peticionOpenpay=$this->pagoExistente($peticionOpenpay, $plantel);
+                //dd($peticionOpenpay);
+            }
+        }
+
+        $url_open_pay = "";
+        $url_recibo_generico="";
+        if($peticionOpenpay->pmethod=="bank_account"){
+            $openpay_productivo=Param::where('llave','openpay_productivo')->first();
+            if ($openpay_productivo->valor == 1) {
+                $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+            } else {
+                $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+            }
+            $url_recibo_generico =$url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rid;
+        }
+
+
+
         $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->pluck('name', 'id');
-        //dd($plantel);
-        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos'));
+        //dd($peticionOpenpay);
+        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos', 'peticionOpenpay','url_recibo_generico'));
     }
 
     public function verDetalle(Request $request)
@@ -792,15 +819,31 @@ class FichaPagosController extends Controller
         $plantel = Plantel::find($adeudo_pago_online->plantel_id);
 
 
-        $existePeticionOpenpayBancos = PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
-            ->where('pmethod', 'bank_account')
+        $existePeticion = PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+            //->where('pmethod', 'bank_account')
             //->whereNotNull('rid')
             ->first();
         //dd(!is_null($existePeticionOpenpayBancos));
-        if (!is_null($existePeticionOpenpayBancos)) {
-            $resultado = $this->pagoBancoExistente($existePeticionOpenpayBancos, $plantel);
-            return response()->json($resultado);
-        }
+        /*if (!is_null($existePeticion)) {
+            $resultado = $this->pagoExistente($existePeticion, $plantel);
+            //dd($resultado);
+            if($resultado->pmethod=="card"){
+                return response()->json(array('method'=>'card', 'url'=>$resultado->rpayment_method_url));
+            }elseif($resultado->pmethod=="bank_account"){
+                $url_open_pay = "";
+                $openpay_productivo=Param::where('llave','openpay_productivo')->first();
+                if ($openpay_productivo->valor == 1) {
+                    $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+                } else {
+                    $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+                }
+                return response()->json(array(
+                    'method'=>'bank_account',
+                    'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid
+                ));
+            }
+
+        }*/
 
 
         //Se crea registro de caja si no tiene
@@ -1277,32 +1320,15 @@ class FichaPagosController extends Controller
         }
     }
 
-    public function pagoBancoExistente($peticionExistente, $plantel)
+    public function pagoExistente($peticionExistente, $plantel)
     {
         //dd($peticionExistente);
         try {
             // create instance OpenPay
 
-            $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+            return $this->buscarOpenpay($peticionExistente, $plantel);
 
-            $url_open_pay = "";
-            if ($openpay_productivo->valor == 1) {
-                $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
-            } else {
-                $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
-            }
 
-            $rid = $peticionExistente->rid;
-            //dd($rid);
-            if (is_null($peticionExistente->rid)) {
-                $rid = $this->buscarOpenpayBanco($peticionExistente, $plantel);
-                //dd($rid);
-            }
-
-            return array(
-                "method" => $peticionExistente->pmethod,
-                'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $rid
-            );
         } catch (Exception $e) {
 
             return response()->json([
@@ -1314,7 +1340,7 @@ class FichaPagosController extends Controller
         }
     }
 
-    public function buscarOpenpayBanco($peticion, $plantel)
+    public function buscarOpenpay($peticion, $plantel)
     {
         $ip = Param::where('llave', 'ip_localhost')->first();
         $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
@@ -1338,9 +1364,48 @@ class FichaPagosController extends Controller
         //dd($findDataRequest);
 
         $chargeList = $openpay->charges->getList($findDataRequest);
-        $peticion->rid=$chargeList[0]->id;
+        //dd($chargeList[0]->authorization);
+        if($peticion->pmethod=="bank_account"){
+            $peticion->rid = $chargeList[0]->id;
+            $peticion->rauthorization = $chargeList[0]->authorization;
+            $peticion->rmethod = $chargeList[0]->method;
+            $peticion->roperation_type = $chargeList[0]->operation_type;
+            $peticion->rtransaction_type = $chargeList[0]->transaction_type;
+            $peticion->rstatus = $chargeList[0]->status;
+            $peticion->rconciliated = $chargeList[0]->conciliated;
+            $peticion->rcreation_date = Carbon::parse($chargeList[0]->creation_date)->format('Y-m-d H:i:s');
+            //$peticionOpenpay->roperation_date=Carbon::parse($charge->operation_date)->format('Y-m-d H:i:s');
+            $peticion->rdescription = $chargeList[0]->description;
+            $peticion->rerror_message = $chargeList[0]->error_message;
+            $peticion->ramount = $chargeList[0]->amount;
+            $peticion->rcurrency = $chargeList[0]->currency;
+            $peticion->rpayment_method_type = $chargeList[0]->payment_method->type;
+            //$peticionOpenpay->rpayment_method_url=$charge->payment_method->url;
+            $peticion->rpayment_method_bank = $chargeList[0]->payment_method->bank;
+            $peticion->rpayment_method_agreement = $chargeList[0]->payment_method->agreement;
+            $peticion->rpayment_method_clabe = $chargeList[0]->payment_method->clabe;
+            $peticion->rpayment_method_name = $chargeList[0]->payment_method->name;
+            $peticion->rorder_id = $chargeList[0]->order_id;
+        }elseif($peticion->pmethod=="card"){
+            $peticion->rid = $chargeList[0]->id;
+            $peticion->rauthorization = $chargeList[0]->authorization;
+            $peticion->rmethod = $chargeList[0]->method;
+            $peticion->roperation_type = $chargeList[0]->operation_type;
+            $peticion->rtransaction_type = $chargeList[0]->transaction_type;
+            $peticion->rstatus = $chargeList[0]->status;
+            $peticion->rconciliated = $chargeList[0]->conciliated;
+            $peticion->rcreation_date = Carbon::parse($chargeList[0]->creation_date)->format('Y-m-d H:i:s');
+            $peticion->roperation_date = Carbon::parse($chargeList[0]->operation_date)->format('Y-m-d H:i:s');
+            $peticion->rdescription = $chargeList[0]->description;
+            $peticion->rerror_message = $chargeList[0]->error_message;
+            $peticion->ramount = $chargeList[0]->amount;
+            $peticion->rcurrency = $chargeList[0]->currency;
+            $peticion->rpayment_method_type = $chargeList[0]->payment_method->type;
+            $peticion->rpayment_method_url = $chargeList[0]->payment_method->url;
+            $peticion->rorder_id = $chargeList[0]->order_id;
+        }
         $peticion->save();
-        return $peticion->rid;
+        return $peticion;
     }
 
     public function pagoTiendas()
@@ -1504,10 +1569,15 @@ class FichaPagosController extends Controller
         try {
             //$success = SuccessMultipago::create($crearRegistro);
             $peticion = PeticionOpenpay::where('rid', $id)->first();
-            if (!is_null($peticion)) {
-                $peticion->bnd_pagado = 1;
-                $peticion->notificacion_pagado = date('Y-m-d H:i:s');
-                $peticion->save();
+            $plantel =Cliente::find($peticion->cliente_id)->plantel;
+
+            $peticion=$this->buscarOpenpay($peticion, $plantel);
+            //dd($peticion);
+
+            if (!is_null($peticion) and $peticion->rstatus=="completed") {
+                //$peticion->bnd_pagado = 1;
+                //$peticion->notificacion_pagado = date('Y-m-d H:i:s');
+                //$peticion->save();
                 $pago = Pago::find($peticion->pago_id);
                 $caja = Caja::find($pago->caja_id);
                 $cajaLn = CajaLn::where('caja_id', $caja->id)->first();

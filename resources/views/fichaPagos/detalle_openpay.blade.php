@@ -150,7 +150,17 @@
 @push('scripts')
 <script type="text/javascript">
 $(document).ready(function(){
-
+    @if(isset($peticionOpenpay) and $peticionOpenpay->rstatus<>"completed")
+        @if($peticionOpenpay->pmethod=='card')
+            window.location.replace("{{$peticionOpenpay->rpayment_method_url}}");
+        @elseif($peticionOpenpay->pmethod=='bank_account')
+            //No terminado correctamente para redireccionar
+            window.open("{{$url_recibo_generico}}");
+        @endif
+    @elseif(isset($peticionOpenpay) and $peticionOpenpay->rstatus=="completed")
+        alert('No es posible procesar la solcitud el pago ya fue efectuado y procesado');
+        window.location.replace('{{route('fichaAdeudos.index')}}');
+    @endif
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let forma_pago=$("#forma_pago_id option:selected").text();
