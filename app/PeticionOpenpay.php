@@ -17,7 +17,8 @@ class PeticionOpenpay extends Model
     }
 
     //Mass Assignment
-    protected $fillable = ['pago_id', 'cliente_id','pname','plast_name','pphone_number','pemail',
+    protected $fillable = ['pago_id', 'cliente_id','forma_pago_id','pname','plast_name',
+    'pphone_number','pemail',
     'pmethod','pamount','pdescription','psend_mail','pconfirm','predirect_url','ppreferencia',
     'porder_id','fecha_limite',
     'rid','rauthorization','rmethod','roperation_type','rtransaction_type','rstatus',

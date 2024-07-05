@@ -85,6 +85,9 @@
                             <?php
                             //dd($combinacion->toArray());
 
+                            $open_activo=\App\Param::where('llave','openpay_activo')->first();
+                            $multipagos_activo=\App\Param::where('llave','multipago_activo')->first();
+
                             $adeudos=\App\Adeudo::where('combinacion_cliente_id',$combinacion->id)
                             ->whereNull('deleted_at')
                             ->with('cajaConcepto')
@@ -192,8 +195,12 @@
                                                 <!--@@if(optional($peticion)->mp_paymentmethod=="SUC")
                                                 <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @@else @@if(!isset($peticion)) -->
+                                                @if($multipagos_activo->valor==1)
                                                 <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea M.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
+                                                @if($open_activo->valor==1)
                                                 <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
                                                 <!--@@endif-->
                                             @endif
                                             @php
@@ -211,8 +218,12 @@
                                             <!--@@if(optional($peticion)->mp_paymentmethod=="SUC")
                                             <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea<i class="ace-icon fa fa-credit-card"></i></a>
                                             @@else@if(!isset($peticion))-->
-                                            <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea M.<i class="ace-icon fa fa-credit-card"></i></a>
-                                            <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
+                                            @if($multipagos_activo->valor==1)
+                                                <a href="{{ route('fichaAdeudos.verDetalle', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea M.<i class="ace-icon fa fa-credit-card"></i></a>
+                                            @endif
+                                            @if($open_activo->valor==1)
+                                                <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
                                             <!--@@endif-->
                                             @endif
                                             @php

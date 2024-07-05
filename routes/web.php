@@ -27,11 +27,13 @@ Route::get('/home', 'HomeController@index')
 
 Auth::routes();
 //Route::get('/', 'Auth\LoginController@showLoginForm');
-/*
-Route::get('/', function () {
+
+/*Route::get('/', function () {
     return view('welcome');
-});
-*/
+});*/
+Route::get('/', 'HomeController@welcome')
+    ->name('welcome');
+
 
 Route::get(
     '/users/editPerfil/{id}',

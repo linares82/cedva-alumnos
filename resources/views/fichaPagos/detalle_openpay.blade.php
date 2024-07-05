@@ -23,12 +23,6 @@
                      {{ $adeudo_pago_online->total }}
                 </div>
             </div>
-            <div class="profile-info-row">
-                <div class="profile-info-name"> Referencia Unica(Solo Pago en Banco) </div>
-                <div class="profile-info-value">
-
-                </div>
-            </div>
         </div>
 
     </div>
@@ -58,6 +52,39 @@
     </div>
     <div class="row">
 
+    @if(!is_null($peticionesOpenpay)>0)
+    <div class="col-sm-6 col-sm-offset-3">
+        <div class="widget-box">
+            <div class="widget-header">
+                <h5 class="widget-title">Peticiones de pago existentes</h5>
+            </div>
+            <div class="widget-body">
+                <div class="widget-main">
+                @foreach($peticionesOpenpay as $peticion)
+                    @if($peticion->pmethod=="card")
+                        Se detecto una peticion de pago con tarjeta (debito, credito o servicios) con estatus 'No completada'
+                        <button class="btn btn-minier btn-purple enviarForm" data-forma_pago_id="{{$peticion->forma_pago_id}}",
+                                                                data-name='{{$peticion->pname}}'
+                                                                data-last_name='{{$peticion->plast_name}}'
+                                                                data-phone_number='{{$peticion->pphone_number}}'
+                                                                data-email='{{$peticion->pemail}}'>Completar Operacion</button>
+                        <hr/>
+                    @elseif($peticion->pmethod=="bank_account")
+                        Se detecto una peticion de pago en banco (Deposito o transferencia) con estatus 'No completada'
+                        <button class="btn btn-minier btn-yellow enviarForm" data-forma_pago_id="{{$peticion->forma_pago_id}}",
+                                                                data-name='{{$peticion->pname}}'
+                                                                data-last_name='{{$peticion->plast_name}}'
+                                                                data-phone_number='{{$peticion->pphone_number}}'
+                                                                data-email='{{$peticion->pemail}}'>Completar Operacion</button>
+                        <hr/>
+                    @endif
+                @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="col-sm-6 col-sm-offset-3">
         <div class="widget-box">
             <div class="widget-header">
@@ -66,6 +93,7 @@
 
             <div class="widget-body">
                 <div class="widget-main">
+
                     <form action="#" method="POST">
                         <div class="col-sm-12">
                         <label for="forma_pago_id" class="control-label">Forma Pago</label>
@@ -150,17 +178,40 @@
 @push('scripts')
 <script type="text/javascript">
 $(document).ready(function(){
-    @if(isset($peticionOpenpay) and $peticionOpenpay->rstatus<>"completed")
-        @if($peticionOpenpay->pmethod=='card')
-            window.location.replace("{{$peticionOpenpay->rpayment_method_url}}");
-        @elseif($peticionOpenpay->pmethod=='bank_account')
-            //No terminado correctamente para redireccionar
-            window.open("{{$url_recibo_generico}}");
-        @endif
-    @elseif(isset($peticionOpenpay) and $peticionOpenpay->rstatus=="completed")
-        alert('No es posible procesar la solcitud el pago ya fue efectuado y procesado');
-        window.location.replace('{{route('fichaAdeudos.index')}}');
-    @endif
+
+    $(document).on('click', '.enviarForm', function(e) {
+        $('#content').html('<div class="loading"><img src="{{ asset('img/ajax-loader.gif') }}" alt="loading" /><br/>Un momento, por favor...</div>');
+        $.ajax({
+            url: '{{ route("fichaAdeudos.crearCajaPagoPeticionOpenpay") }}',
+            type: 'POST',
+            data: {
+                '_token': $('input[name=_token]').val(),
+                "adeudo_pago_online_id":{{ $adeudo_pago_online->id }},
+                "forma_pago_id": $(this).data('forma_pago_id'),
+                'name': $(this).data('name'),
+                'last_name': $(this).data('last_name'),
+                'phone_number': $(this).data('phone_number'),
+                'email': $(this).data('email'),
+            },
+            dataType: 'json',
+            beforeSend : function(){$("#loading13").show();},
+            complete : function(){$("#loading13").hide();},
+            success: function(data){
+
+                if(data.method==="card"){
+                    window.location.replace(data.url);
+                }else if(data.method==="bank_account"){
+                    window.open(data.url);
+                }else{
+                    window.location.replace(data.url);
+                }
+
+            }
+        });
+
+    });
+
+
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let forma_pago=$("#forma_pago_id option:selected").text();
@@ -232,6 +283,8 @@ $(document).ready(function(){
 function formatoFecha(texto){
   return texto.replace(/^(\d{4})-(\d{2})-(\d{2})$/g,'$1/$2/$3');
 }
+
+
 
 </script>
 @endpush
