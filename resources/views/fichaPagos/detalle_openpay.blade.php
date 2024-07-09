@@ -77,6 +77,14 @@
                                                                 data-phone_number='{{$peticion->pphone_number}}'
                                                                 data-email='{{$peticion->pemail}}'>Completar Operacion</button>
                         <hr/>
+                    @elseif($peticion->pmethod=="store")
+                        Se detecto una peticion de pago en tiendas(paynet) con estatus 'No completada'
+                        <button class="btn btn-minier btn-pink enviarForm" data-forma_pago_id="{{$peticion->forma_pago_id}}",
+                                                                data-name='{{$peticion->pname}}'
+                                                                data-last_name='{{$peticion->plast_name}}'
+                                                                data-phone_number='{{$peticion->pphone_number}}'
+                                                                data-email='{{$peticion->pemail}}'>Completar Operacion</button>
+                        <hr/>
                     @endif
                 @endforeach
                 </div>
@@ -202,6 +210,8 @@ $(document).ready(function(){
                     window.location.replace(data.url);
                 }else if(data.method==="bank_account"){
                     window.open(data.url);
+                }else if(data.method==="store"){
+                    window.open(data.url);
                 }else{
                     window.location.replace(data.url);
                 }
@@ -267,6 +277,8 @@ $(document).ready(function(){
                             if(data.method==="card"){
                                 window.location.replace(data.url);
                             }else if(data.method==="bank_account"){
+                                window.open(data.url);
+                            }else if(data.method==="store"){
                                 window.open(data.url);
                             }
 

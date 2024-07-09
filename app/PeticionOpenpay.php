@@ -25,7 +25,8 @@ class PeticionOpenpay extends Model
     'rconciliated','rcreation_date','roperation_date','rdescription','rerror_message','ramount',
     'rcurrency','rpayment_method_type','rpayment_method_bank','rpayment_method_agreement',
     'rpayment_method_clabe','rpayment_method_name',
-    'rpayment_method_url','rpayment_method_barcode_url',
+    'rpayment_method_url','rpayment_method_barcode_url','rpayment_method_paybin_reference',
+    'rpayment_method_barcode_paybin_url',
     'rpayment_method_reference','rcustomer','rorder_id','dispositivo','navegador',
     'contador_peticiones','usu_alta_id', 'usu_mod_id','bnd_pagado','notificacion_pagado'];
 

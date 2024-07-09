@@ -575,7 +575,7 @@ class FichaPagosController extends Controller
         $formas_pago_peticiones=array();
         $peticionesOpenpay=null;
         if(!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id>0){
-            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->get();
+            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->whereDate('fecha_limite','<=',date('Y-m-d'))->get();
             $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->pluck('pmethod');
         }
 
@@ -920,6 +920,18 @@ class FichaPagosController extends Controller
                     'method'=>'bank_account',
                     'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid
                 ));
+            }elseif($resultado->pmethod=="store" and $resultado->rstatus<>"completed"){
+                $url_open_pay = "";
+                $openpay_productivo=Param::where('llave','openpay_productivo')->first();
+                if ($openpay_productivo->valor == 1) {
+                    $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+                } else {
+                    $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+                }
+                return response()->json(array(
+                    'method'=>'store',
+                    'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $existePeticion->rpayment_method_reference
+                ));
             }elseif($resultado->rstatus=="completed"){
                 $this->successOpenpay($resultado->rid);
                 return response()->json(array(
@@ -1033,8 +1045,16 @@ class FichaPagosController extends Controller
             $datosOpenpay['pconfirm'] = false;
             $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
             //$datosOpenpay['ppreferencia']=;
+            $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 23:59:59");
+            $hoy=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
+            //dd($hoy->diffInDays($due_date));
+            if($hoy->diffInDays($due_date)>=30){
+                $datosOpenpay['fecha_limite'] = $hoy->addDays(29)->toDateTimeString();
+            }else{
+                $datosOpenpay['fecha_limite'] = $due_date->toDateTimeString();
+            }
 
-            $datosOpenpay['fecha_limite'] = $adeudo_pago_online->fecha_limite->toDateString();
+
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;
 
@@ -1048,7 +1068,8 @@ class FichaPagosController extends Controller
                 $respuesta = $this->pagoBancoNuevo($peticionOpenpay, $plantel);
                 return response()->json($respuesta);
             } elseif ($peticionOpenpay->pmethod == 'store') {
-                $this->pagoTienda();
+                $respuesta = $this->pagoTiendas($peticionOpenpay, $plantel);
+                return response()->json($respuesta);
             }
         } else {
         }
@@ -1218,7 +1239,7 @@ class FichaPagosController extends Controller
                 'description' => $peticionOpenpay->pdescription,
                 'order_id' => $peticionOpenpay->porder_id,
                 'customer' => $customer,
-                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i',$peticionOpenpay->fecha_limite." 23:59:59")->toIso8601String()
+                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i',$peticionOpenpay->fecha_limite)->toIso8601String()
                 //'send_email' => $peticionOpenpay->psend_mail,
                 //'confirm' => $peticionOpenpay->pconfirm,
                 //'redirect_url' => $peticionOpenpay->predirect_url
@@ -1397,13 +1418,169 @@ class FichaPagosController extends Controller
             $peticion->rpayment_method_type = $chargeList[0]->payment_method->type;
             $peticion->rpayment_method_url = $chargeList[0]->payment_method->url;
             $peticion->rorder_id = $chargeList[0]->order_id;
+        }elseif($peticion->pmethod=="store"){
+            $peticion->rid = $chargeList[0]->id;
+            $peticion->rauthorization = $chargeList[0]->authorization;
+            $peticion->rmethod = $chargeList[0]->method;
+            $peticion->roperation_type = $chargeList[0]->operation_type;
+            $peticion->rtransaction_type = $chargeList[0]->transaction_type;
+            $peticion->rstatus = $chargeList[0]->status;
+            $peticion->rconciliated = $chargeList[0]->conciliated;
+            $peticion->rcreation_date = Carbon::parse($chargeList[0]->creation_date)->format('Y-m-d H:i:s');
+            $peticion->roperation_date = Carbon::parse($chargeList[0]->operation_date)->format('Y-m-d H:i:s');
+            $peticion->rdescription = $chargeList[0]->description;
+            $peticion->rerror_message = $chargeList[0]->error_message;
+            $peticion->ramount = $chargeList[0]->amount;
+            $peticion->rcurrency = $chargeList[0]->currency;
+            $peticion->rpayment_method_type = $chargeList[0]->payment_method->type;
+            //$peticion->rpayment_method_url = $chargeList[0]->payment_method->url;
+            $peticion->rpayment_method_reference = $chargeList[0]->payment_method->reference;
+            $peticion->rpayment_method_barcode_url = $chargeList[0]->payment_method->barcode_url;
+            $peticion->rorder_id = $chargeList[0]->order_id;
         }
         $peticion->save();
         return $peticion;
     }
 
-    public function pagoTiendas()
+    public function pagoTiendas($peticionOpenpay, $plantel)
     {
+           //dd('fil');
+           try {
+            // create instance OpenPay
+            //dd($peticionOpenpay);
+            $ip = Param::where('llave', 'ip_localhost')->first();
+            $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
+            //dd($openpay);
+            $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+
+            $url_open_pay = "";
+            if ($openpay_productivo->valor == 1) {
+                //$openpay->setProductionMode(true);
+                Openpay::setProductionMode(true);
+                $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
+            } else {
+                //$openpay->setProductionMode(false);
+                Openpay::setProductionMode(false);
+                $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
+            }
+
+
+            // create object customer
+            $customer = array(
+                'name' => $peticionOpenpay->pname,
+                'last_name' => $peticionOpenpay->plast_name,
+                'email' => $peticionOpenpay->pemail,
+                'phone_number' => $peticionOpenpay->pphone_number,
+                'order_id' => $peticionOpenpay->porder_id,
+            );
+
+            // create object charge
+            //dd($peticionOpenpay->fecha_limite);
+            //dd(Carbon::createFromFormat('Y-m-d',$peticionOpenpay->fecha_limite)->toIso8601String());
+            $chargeData  =  array(
+                'method' => $peticionOpenpay->pmethod,
+                'amount' => $peticionOpenpay->pamount,
+                'description' => $peticionOpenpay->pdescription,
+                'order_id' => $peticionOpenpay->porder_id,
+                'customer' => $customer,
+                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i',$peticionOpenpay->fecha_limite)->toIso8601String()
+                //'send_email' => $peticionOpenpay->psend_mail,
+                //'confirm' => $peticionOpenpay->pconfirm,
+                //'redirect_url' => $peticionOpenpay->predirect_url
+            );
+            //dd($chargeData);
+            $charge = $openpay->charges->create($chargeData);
+            //dd($charge);
+            //dd($charge->serializableData['conciliated']);
+            //dd($charge->serializableData);
+            $peticionOpenpay->rid = $charge->id;
+            $peticionOpenpay->rauthorization = $charge->authorization;
+            $peticionOpenpay->rmethod = $charge->method;
+            $peticionOpenpay->roperation_type = $charge->operation_type;
+            $peticionOpenpay->rtransaction_type = $charge->transaction_type;
+            $peticionOpenpay->rstatus = $charge->status;
+            $peticionOpenpay->rconciliated = $charge->conciliated;
+            $peticionOpenpay->rcreation_date = Carbon::parse($charge->creation_date)->format('Y-m-d H:i:s');
+            //$peticionOpenpay->roperation_date=Carbon::parse($charge->operation_date)->format('Y-m-d H:i:s');
+            $peticionOpenpay->rdescription = $charge->description;
+            $peticionOpenpay->rerror_message = $charge->error_message;
+            $peticionOpenpay->ramount = $charge->amount;
+            $peticionOpenpay->rcurrency = $charge->currency;
+            $peticionOpenpay->rpayment_method_type = $charge->payment_method->type;
+            //$peticionOpenpay->rpayment_method_url=$charge->payment_method->url;
+            //$peticionOpenpay->rpayment_method_bank = $charge->payment_method->bank;
+            //$peticionOpenpay->rpayment_method_agreement = $charge->payment_method->agreement;
+            //$peticionOpenpay->rpayment_method_clabe = $charge->payment_method->clabe;
+            //$peticionOpenpay->rpayment_method_name = $charge->payment_method->name;
+            $peticionOpenpay->rpayment_method_reference = $charge->payment_method->reference;
+            $peticionOpenpay->rpayment_method_barcode_url = $charge->payment_method->barcode_url;
+            //$peticionOpenpay->rpayment_method_paybin_reference = $charge->payment_method->paybin_reference;
+            //$peticionOpenpay->rpayment_method_barcode_paybin_url = $charge->payment_method->barcode_paybin_url;
+            $peticionOpenpay->rorder_id = $charge->order_id;
+            //$peticionOpenpay->rcustomer=json_encode($charge->customer);
+            $peticionOpenpay->save();
+            return array(
+                "method" => $peticionOpenpay->pmethod,
+                'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rpayment_method_reference
+            );
+        } catch (OpenpayApiTransactionError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiRequestError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiConnectionError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiAuthError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (OpenpayApiError $e) {
+            return response()->json([
+                'error' => [
+                    'category' => $e->getCategory(),
+                    'error_code' => $e->getErrorCode(),
+                    'description' => $e->getMessage(),
+                    'http_code' => $e->getHttpCode(),
+                    'request_id' => $e->getRequestId()
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ]);
+        }
     }
 
     public function getCuentasPlantelFormaPago($forma_pago, $plantel)
