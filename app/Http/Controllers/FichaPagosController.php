@@ -6,6 +6,7 @@ use Mail;
 use App\Caja;
 use App\Pago;
 use App\User;
+use DateTime;
 use App\Param;
 use Exception;
 use XMLWriter;
@@ -18,6 +19,7 @@ use App\Plantel;
 use App\Seccion;
 use DOMDocument;
 use App\Empleado;
+use DateInterval;
 use Carbon\Carbon;
 use App\UsoFactura;
 use App\PromoPlanLn;
@@ -33,19 +35,19 @@ use App\AutorizacionBeca;
 use App\SuccessMultipago;
 use Openpay\Data\Openpay;
 use App\NivelEducativoSat;
+
 use App\PeticionMultipago;
 use App\CombinacionCliente;
 
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
-
 use App\SerieFolioSimplificado;
 use Illuminate\Http\JsonResponse;
 use Openpay\Data\OpenpayApiError;
 use Illuminate\Support\Facades\DB;
+
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-
 use Openpay\Data\OpenpayApiAuthError;
 use Illuminate\Support\Facades\Session;
 use Luecano\NumeroALetras\NumeroALetras;
@@ -575,8 +577,12 @@ class FichaPagosController extends Controller
         $formas_pago_peticiones=array();
         $peticionesOpenpay=null;
         if(!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id>0){
-            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->whereDate('fecha_limite','<=',date('Y-m-d'))->get();
-            $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->pluck('pmethod');
+            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->whereDate('fecha_limite','>=',date('Y-m-d'))->get();
+            //dd($peticionesOpenpay);
+            if(count($peticionesOpenpay)>0){
+                $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->pluck('pmethod');
+            }
+
         }
 
 
@@ -906,9 +912,9 @@ class FichaPagosController extends Controller
         if (!is_null($existePeticion)) {
             $resultado = $this->pagoExistente($existePeticion, $plantel);
             //dd($resultado);
-            if($resultado->pmethod=="card" and $resultado->rstatus<>"completed"){
+            if($resultado->pmethod=="card" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 return response()->json(array('method'=>'card', 'url'=>$resultado->rpayment_method_url));
-            }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed"){
+            }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
                 $openpay_productivo=Param::where('llave','openpay_productivo')->first();
                 if ($openpay_productivo->valor == 1) {
@@ -920,7 +926,7 @@ class FichaPagosController extends Controller
                     'method'=>'bank_account',
                     'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid
                 ));
-            }elseif($resultado->pmethod=="store" and $resultado->rstatus<>"completed"){
+            }elseif($resultado->pmethod=="store" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
                 $openpay_productivo=Param::where('llave','openpay_productivo')->first();
                 if ($openpay_productivo->valor == 1) {
@@ -1053,7 +1059,12 @@ class FichaPagosController extends Controller
             }else{
                 $datosOpenpay['fecha_limite'] = $due_date->toDateTimeString();
             }
-
+            //FLC manipulacion de fecha limite  minutos despues de la creacion
+            //dd(Carbon::createFromFormat('Y-m-d H:s:i',Date('Y-m-d H:i:s'))->toDateTimeString());
+            $fecha_limite = new DateTime(Date('Y-m-d H:i:s'));
+            $fecha_limite->add(new DateInterval('PT' . 600 . 'M'));
+            $datosOpenpay['fecha_limite']=$fecha_limite->format('Y-m-d H:i:s');
+            //fin manipulacion
 
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;

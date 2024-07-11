@@ -225,7 +225,7 @@ $(document).ready(function(){
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let forma_pago=$("#forma_pago_id option:selected").text();
-        console.log(forma_pago);
+        //console.log(forma_pago);
         let name=$("#name").val();
         let last_name=$("#last_name").val();
         let phone_number=$("#phone_number").val();
