@@ -62,7 +62,7 @@
                 <div class="widget-main">
                 @foreach($peticionesOpenpay as $peticion)
                     @if($peticion->pmethod=="card")
-                        Se detecto una peticion de pago con tarjeta (debito, credito o servicios) con estatus 'No completada'
+                        Se detecto una peticion de pago con tarjeta (debito, credito o servicios) con estatus 'No completada' con order {{$peticion->porder_id}}
                         <button class="btn btn-minier btn-purple enviarForm" data-forma_pago_id="{{$peticion->forma_pago_id}}",
                                                                 data-name='{{$peticion->pname}}'
                                                                 data-last_name='{{$peticion->plast_name}}'
@@ -70,7 +70,7 @@
                                                                 data-email='{{$peticion->pemail}}'>Completar Operacion</button>
                         <hr/>
                     @elseif($peticion->pmethod=="bank_account")
-                        Se detecto una peticion de pago en banco (Deposito o transferencia) con estatus 'No completada'
+                        Se detecto una peticion de pago en banco (Deposito o transferencia) con estatus 'No completada' con order {{$peticion->porder_id}}
                         <button class="btn btn-minier btn-yellow enviarForm" data-forma_pago_id="{{$peticion->forma_pago_id}}",
                                                                 data-name='{{$peticion->pname}}'
                                                                 data-last_name='{{$peticion->plast_name}}'
@@ -78,7 +78,7 @@
                                                                 data-email='{{$peticion->pemail}}'>Completar Operacion</button>
                         <hr/>
                     @elseif($peticion->pmethod=="store")
-                        Se detecto una peticion de pago en tiendas(paynet) con estatus 'No completada'
+                        Se detecto una peticion de pago en tiendas(paynet) con estatus 'No completada' con order {{$peticion->porder_id}}
                         <button class="btn btn-minier btn-pink enviarForm" data-forma_pago_id="{{$peticion->forma_pago_id}}",
                                                                 data-name='{{$peticion->pname}}'
                                                                 data-last_name='{{$peticion->plast_name}}'

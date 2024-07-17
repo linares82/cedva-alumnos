@@ -586,7 +586,14 @@ class FichaPagosController extends Controller
         $formas_pago_peticiones=array();
         $peticionesOpenpay=null;
         if(!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id>0){
-            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->whereDate('fecha_limite','>=',date('Y-m-d'))->get();
+            $peticionesOpenpayCard=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+            ->whereDate('fecha_limite','>=',date('Y-m-d'))
+            ->whereIn('pmethod',array('card'));
+            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+            ->whereIn('pmethod',array('bank_account','store'))
+            ->where('rstatus','<>','cancelled')
+            ->union($peticionesOpenpayCard)
+            ->get();
             //dd($peticionesOpenpay);
             if(count($peticionesOpenpay)>0){
                 $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->pluck('pmethod');
