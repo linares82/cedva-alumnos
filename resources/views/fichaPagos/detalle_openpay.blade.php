@@ -53,7 +53,7 @@
     <div class="row">
 
     @if(!is_null(($peticionesOpenpay)) and count($peticionesOpenpay)>0)
-    <div class="col-sm-6 col-sm-offset-3">
+    <div class="col-sm-8 col-sm-offset-2">
         <div class="widget-box">
             <div class="widget-header">
                 <h5 class="widget-title">Peticiones de pago existentes</h5>

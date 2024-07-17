@@ -1117,7 +1117,7 @@ class FichaPagosController extends Controller
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;
 
-            //dd($datosOpenpay);
+            dd($datosOpenpay);
             $peticionOpenpay = PeticionOpenpay::create($datosOpenpay);
 
             if ($peticionOpenpay->pmethod == 'card') {
