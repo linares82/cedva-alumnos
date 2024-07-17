@@ -84,6 +84,8 @@
                         <tbody>
                             <?php
                             //dd($combinacion->toArray());
+                            $existe_seccion_valida=0;
+
 
                             $open_activo=\App\Param::where('llave','openpay_activo')->first();
                             $multipagos_activo=\App\Param::where('llave','multipago_activo')->first();
@@ -102,6 +104,20 @@
                             ?>
 
                             @foreach($adeudos as $adeudo)
+                                @php
+                                    if ($loop->first){
+
+                                    //dd($adeudo->combinacionCliente->grado->seccion);
+                                    $resultado=$secciones_validas->where('name', $adeudo->combinacionCliente->grado->seccion)->first();
+                                    //dd($resultado);
+                                    if(!is_null($resultado)){
+                                        $existe_seccion_valida=1;
+                                    }
+                                    }
+
+
+                                    //dd($existe_seccion_valida);
+                                @endphp
 
                                 @if($adeudo->cajaConcepto->bnd_mensualidad==1 and isset($adeudo->pagoOnLine))
                                 @php
@@ -148,14 +164,8 @@
                                             }
                                         }
 
-                                        $existe_seccion_valida=0;
-                                        //dd($adeudo->combinacionCliente->grado->seccion);
-                                        $resultado=$secciones_validas->where('name', $adeudo->combinacionCliente->grado->seccion)->first();
-                                        if(!is_null($resultado)){
-                                            $existe_seccion_valida=1;
-                                        }
 
-                                        //dd($existe_seccion_valida);
+
 
                                         //Revisar si tiene adeudos que no sean mensualidad para no dejarlo pagar
                                         $adeudos_no_mensualidad=\App\Adeudo::where('combinacion_cliente_id',$combinacion->id)
@@ -235,7 +245,9 @@
 
                                     </td>
                                     <td>
-
+                                        @php
+                                            //echo $existe_seccion_valida;
+                                        @endphp
                                         @if($adeudo->pagado_bnd==1 and $adeudo->caja_id>0)
                                             {{ $adeudo->caja->consecutivo }}
                                             <a href="{{ route('fichaAdeudos.imprimir', array('pago'=>$adeudo->caja->pago->id)) }}" target="_blank" class="btn btn-info btn-xs">

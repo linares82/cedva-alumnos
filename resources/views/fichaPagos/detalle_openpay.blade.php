@@ -52,7 +52,7 @@
     </div>
     <div class="row">
 
-    @if(!is_null($peticionesOpenpay)>0)
+    @if(count($peticionesOpenpay)>0)
     <div class="col-sm-6 col-sm-offset-3">
         <div class="widget-box">
             <div class="widget-header">
@@ -107,7 +107,7 @@
                         <label for="forma_pago_id" class="control-label">Forma Pago</label>
 
                         <select class="form-control chosen" id="forma_pago_id" name="forma_pago_id" required="true">
-                            <option value=""   selected>Seleccionar opción</option>
+                            <option value=""   selected>Seleccionar opciÃ³n</option>
                             @foreach ($forma_pagos as $key => $forma_pago)
                                 <option value="{{ $key }}">
                                     {{ $forma_pago }}
@@ -126,8 +126,8 @@
                         <input type="text" value="{{ $adeudo_pago_online->cliente->ape_paterno }} {{ $adeudo_pago_online->cliente->ape_materno }}" id="last_name" placeholder="Apellidos" class="col-xs-12 col-sm-12">
                         </div>
                         <div class="col-sm-12">
-                        <label for="phone_number">Teléfono</label>
-                        <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="Teléfono" class="col-xs-12 col-sm-12">
+                        <label for="phone_number">TelÃ©fono</label>
+                        <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="TelÃ©fono" class="col-xs-12 col-sm-12">
                         </div>
                         <div class="col-sm-12">
                         <label for="email">Email</label>
@@ -189,6 +189,7 @@ $(document).ready(function(){
 
     $(document).on('click', '.enviarForm', function(e) {
         $('#content').html('<div class="loading"><img src="{{ asset('img/ajax-loader.gif') }}" alt="loading" /><br/>Un momento, por favor...</div>');
+
         $.ajax({
             url: '{{ route("fichaAdeudos.crearCajaPagoPeticionOpenpay") }}',
             type: 'POST',
@@ -205,22 +206,20 @@ $(document).ready(function(){
             beforeSend : function(){$("#loading13").show();},
             complete : function(){$("#loading13").hide();},
             success: function(data){
-
-                if(data.method==="card"){
+                if(data.method==="card" && data.error===null){
                     window.location.replace(data.url);
-                }else if(data.method==="bank_account"){
+                }else if(data.method==="bank_account" && data.error===null){
                     window.open(data.url);
-                }else if(data.method==="store"){
+                }else if(data.method==="store" && data.error===null){
                     window.open(data.url);
+                }else if(data.error!==null){
+                    alert(data.error.description);
                 }else{
                     window.location.replace(data.url);
                 }
-
             }
         });
-
     });
-
 
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
@@ -273,15 +272,17 @@ $(document).ready(function(){
                         beforeSend : function(){$("#loading13").show();},
                         complete : function(){$("#loading13").hide();},
                         success: function(data){
-
-                            if(data.method==="card"){
+                            if(data.method==="card" && data.error===null){
                                 window.location.replace(data.url);
-                            }else if(data.method==="bank_account"){
+                            }else if(data.method==="bank_account" && data.error===null){
                                 window.open(data.url);
-                            }else if(data.method==="store"){
+                            }else if(data.method==="store" && data.error===null){
                                 window.open(data.url);
+                            }else if(data.error!==null){
+                                alert(data.error.description);
+                            }else{
+                                window.location.replace(data.url);
                             }
-
                         }
                     });
                 }
@@ -295,8 +296,6 @@ $(document).ready(function(){
 function formatoFecha(texto){
   return texto.replace(/^(\d{4})-(\d{2})-(\d{2})$/g,'$1/$2/$3');
 }
-
-
 
 </script>
 @endpush

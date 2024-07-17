@@ -6,7 +6,6 @@ use Mail;
 use App\Caja;
 use App\Pago;
 use App\User;
-use DateTime;
 use App\Param;
 use Exception;
 use XMLWriter;
@@ -19,7 +18,6 @@ use App\Plantel;
 use App\Seccion;
 use DOMDocument;
 use App\Empleado;
-use DateInterval;
 use Carbon\Carbon;
 use App\UsoFactura;
 use App\PromoPlanLn;
@@ -35,19 +33,19 @@ use App\AutorizacionBeca;
 use App\SuccessMultipago;
 use Openpay\Data\Openpay;
 use App\NivelEducativoSat;
-
 use App\PeticionMultipago;
 use App\CombinacionCliente;
 
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+
 use App\SerieFolioSimplificado;
 use Illuminate\Http\JsonResponse;
 use Openpay\Data\OpenpayApiError;
 use Illuminate\Support\Facades\DB;
-
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+
 use Openpay\Data\OpenpayApiAuthError;
 use Illuminate\Support\Facades\Session;
 use Luecano\NumeroALetras\NumeroALetras;
@@ -67,7 +65,12 @@ class FichaPagosController extends Controller
         if (isset($datos['id'])) {
             $this->successOpenpay($datos['id']);
         }
-        $cliente = Cliente::where('matricula', Auth::user()->name)->first();
+        $cliente = Cliente::select('plantel_id','id','matricula','nombre','nombre2','ape_paterno',
+        'ape_materno','mail','bnd_doc_oblig_entregados')
+        ->where('matricula', Auth::user()->name)
+        ->with('plantel')
+        ->first();
+	//dd($cliente);
         /*$pago=Pago::find(86721);
         $pago->fecha="2021-10-11";
         $pago->save();*/
@@ -86,12 +89,13 @@ class FichaPagosController extends Controller
         //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
+	//dd($cliente->matricula);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)
             ->orderBy('fecha_limite')
             ->whereNull('deleted_at')
             ->get();
         //dd($adeudo_pago_online->toArray());
-        $secciones_validas = Seccion::all();
+        $secciones_validas = Seccion::select('id', 'name')->get();
 
         return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas'));
     }
@@ -168,6 +172,7 @@ class FichaPagosController extends Controller
             ->orderBy('adeudos.fecha_pago')
             ->take(5)
             ->whereNull('adeudos.deleted_at')
+	    ->whereRaw('Date_Format(adeudos.updated_at,"Y-m-d") != ? ',[Date('Y-m-d')])
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->join('grados as g', 'g.id', '=', 'cc.grado_id')
             //->whereIn('g.seccion', $seccionesValidas)
@@ -182,7 +187,9 @@ class FichaPagosController extends Controller
             //Log::Info($adeudo->toArray());
             $adeudo_pago_online = optional($adeudo)->pagoOnLine;
             //$adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
-            //dd($adeudo->toArray());
+            //dd($adeudo_pago_online);
+
+	    if((!is_null($adeudo_pago_online) and $adeudo_pago_online->updated_at->toDateString() <> Date('Y-m-d')) or is_null($adeudo_pago_online)){
             if ($adeudo->pagado_bnd == 1) {
 
                 if (is_null($adeudo_pago_online)) {
@@ -281,6 +288,8 @@ class FichaPagosController extends Controller
                     //}
                 }
             }
+	    }
+	//dd('un reg');
         }
     }
 
@@ -582,9 +591,8 @@ class FichaPagosController extends Controller
             if(count($peticionesOpenpay)>0){
                 $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->pluck('pmethod');
             }
-
+            //dd($formas_pago_peticiones);
         }
-
 
         $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->whereNotIn('cve_multipagos', $formas_pago_peticiones)->pluck('name', 'id');
         //dd($url_recibo_generico);
@@ -908,11 +916,14 @@ class FichaPagosController extends Controller
             ->where('pmethod', $pago->formaPago->cve_multipagos)
             //->whereNotNull('rid')
             ->first();
-        //dd($existePeticion);
+        //dd($plantel);
+        $prefijo_matricula_instalacion=Param::where('llave','prefijo_matricula_instalacion')->first();
+        $order_id_card = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
         if (!is_null($existePeticion)) {
             $resultado = $this->pagoExistente($existePeticion, $plantel);
             //dd($resultado);
-            if($resultado->pmethod=="card" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
+
+            if($resultado->pmethod=="card" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled" and $resultado->pamount==$pago->monto){
                 return response()->json(array('method'=>'card', 'url'=>$resultado->rpayment_method_url));
             }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
@@ -924,7 +935,8 @@ class FichaPagosController extends Controller
                 }
                 return response()->json(array(
                     'method'=>'bank_account',
-                    'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid
+                    'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid,
+                    'error'=> null
                 ));
             }elseif($resultado->pmethod=="store" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
@@ -936,13 +948,15 @@ class FichaPagosController extends Controller
                 }
                 return response()->json(array(
                     'method'=>'store',
-                    'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $existePeticion->rpayment_method_reference
+                    'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $existePeticion->rpayment_method_reference,
+                    'error'=> null
                 ));
             }elseif($resultado->rstatus=="completed"){
                 $this->successOpenpay($resultado->rid);
                 return response()->json(array(
                     'method'=>'completado',
-                    'url' => route('fichaAdeudos.index')
+                    'url' => route('fichaAdeudos.index'),
+                    'error'=> null
                 ));
 
             }
@@ -1034,7 +1048,7 @@ class FichaPagosController extends Controller
         ], 200);
         */
         if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
-            $prefijo_matricula_instalacion=Param::where('llave','prefijo_matricula_instalacion')->first();
+
             $datosOpenpay = array();
             $datosOpenpay['pago_id'] = $pago->id;
             $datosOpenpay['cliente_id'] = $caja->cliente_id;
@@ -1045,27 +1059,54 @@ class FichaPagosController extends Controller
             $datosOpenpay['pemail'] = $datos['email'];
             $datosOpenpay['pmethod'] = $pago->formaPago->cve_multipagos;
             $datosOpenpay['pamount'] = number_format((float) $pago->monto, 2, '.', '');
-            $datosOpenpay['porder_id'] = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('000000000', $caja->id);
-            $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'];
+            $datosOpenpay['porder_id'] = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
+            $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('Ymd');
             $datosOpenpay['p_send_mail'] = false;
             $datosOpenpay['pconfirm'] = false;
             $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
             //$datosOpenpay['ppreferencia']=;
-            $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 23:59:59");
+            $due_date=null;
+            if($datosOpenpay['pmethod']=="card"){
+                $due_date=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
+                $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('Ymd');
+                //Manipulacion de fecha
+                //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
+                //Fin manipulacion de fecha
+                $datosOpenpay['porder_id'] = $order_id_card;
+                //Eliminar registros de peticiones no pagadas con monto diferente si es que existen
+                $peticion=PeticionOpenpay::where('pago_id',$pago->id)->first();
+                if(!is_null($peticion)){
+                    $peticion->delete();
+                }
+
+            }elseif($datosOpenpay['pmethod']=="bank_account"){
+                $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 16:00:00");
+                //Manipulacion de fecha
+                //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
+                //Fin manipulacion de fecha
+
+                //dd($hoy->diffInDays($due_date));
+
+            }elseif($datosOpenpay['pmethod']=="store"){
+                $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 21:00:00");
+                //Manipulacion de fecha
+                //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
+                //Fin manipulacion de fecha
+
+                //dd($hoy->diffInDays($due_date));
+            }
+
             $hoy=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
-            //dd($hoy->diffInDays($due_date));
+
             if($hoy->diffInDays($due_date)>=30){
                 $datosOpenpay['fecha_limite'] = $hoy->addDays(29)->toDateTimeString();
             }else{
                 $datosOpenpay['fecha_limite'] = $due_date->toDateTimeString();
             }
-            //FLC manipulacion de fecha limite  minutos despues de la creacion
-            //dd(Carbon::createFromFormat('Y-m-d H:s:i',Date('Y-m-d H:i:s'))->toDateTimeString());
-            $fecha_limite = new DateTime(Date('Y-m-d H:i:s'));
-            $fecha_limite->add(new DateInterval('PT' . 600 . 'M'));
-            $datosOpenpay['fecha_limite']=$fecha_limite->format('Y-m-d H:i:s');
-            //fin manipulacion
 
+            //Manipulacion de fecha
+            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-16 21:00:00')->toDateTimeString();
+            //Fin manipulacion de fecha
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;
 
@@ -1074,6 +1115,7 @@ class FichaPagosController extends Controller
 
             if ($peticionOpenpay->pmethod == 'card') {
                 $respuesta = $this->pagoTarjeta($peticionOpenpay, $plantel);
+                //dd($respuesta);
                 return response()->json($respuesta);
             } elseif ($peticionOpenpay->pmethod == 'bank_account') {
                 $respuesta = $this->pagoBancoNuevo($peticionOpenpay, $plantel);
@@ -1123,7 +1165,7 @@ class FichaPagosController extends Controller
                 'order_id' => $peticionOpenpay->porder_id,
             );
             $charge = $openpay->charges->create($chargeRequest);
-            //dd($charge);
+
             //dd($charge->serializableData['conciliated']);
             //dd($charge->serializableData);
             $peticionOpenpay->rid = $charge->id;
@@ -1147,10 +1189,11 @@ class FichaPagosController extends Controller
             //dd($peticionOpenpay);
             return array(
                 "method" => $peticionOpenpay->pmethod,
-                'url' => $peticionOpenpay->rpayment_method_url
+                'url' => $peticionOpenpay->rpayment_method_url,
+                'error'=> null
             );
         } catch (OpenpayApiTransactionError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1158,9 +1201,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+                ];
         } catch (OpenpayApiRequestError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1168,9 +1211,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiConnectionError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1178,9 +1221,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiAuthError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1188,9 +1231,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1198,14 +1241,14 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (Exception $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'error_code' => $e->getCode(),
                     'description' => $e->getMessage()
                 ]
-            ]);
+            ];
         }
     }
 
@@ -1284,10 +1327,11 @@ class FichaPagosController extends Controller
             $peticionOpenpay->save();
             return array(
                 "method" => $peticionOpenpay->pmethod,
-                'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rid
+                'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rid,
+                'error'=> null
             );
         } catch (OpenpayApiTransactionError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1295,9 +1339,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+                ];
         } catch (OpenpayApiRequestError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1305,9 +1349,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiConnectionError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1315,9 +1359,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiAuthError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1325,9 +1369,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1335,14 +1379,14 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (Exception $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'error_code' => $e->getCode(),
                     'description' => $e->getMessage()
                 ]
-            ]);
+            ];
         }
     }
 
@@ -1390,7 +1434,7 @@ class FichaPagosController extends Controller
         //dd($findDataRequest);
 
         $chargeList = $openpay->charges->getList($findDataRequest);
-        //dd($chargeList[0]->authorization);
+        //dd($chargeList);
         if($peticion->pmethod=="bank_account"){
             $peticion->rid = $chargeList[0]->id;
             $peticion->rauthorization = $chargeList[0]->authorization;
@@ -1532,10 +1576,11 @@ class FichaPagosController extends Controller
             $peticionOpenpay->save();
             return array(
                 "method" => $peticionOpenpay->pmethod,
-                'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rpayment_method_reference
+                'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rpayment_method_reference,
+                'error'=> null
             );
         } catch (OpenpayApiTransactionError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1543,9 +1588,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+                ];
         } catch (OpenpayApiRequestError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1553,9 +1598,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiConnectionError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1563,9 +1608,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiAuthError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1573,9 +1618,9 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (OpenpayApiError $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'category' => $e->getCategory(),
                     'error_code' => $e->getErrorCode(),
@@ -1583,14 +1628,14 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-            ]);
+            ];
         } catch (Exception $e) {
-            return response()->json([
+            return [
                 'error' => [
                     'error_code' => $e->getCode(),
                     'description' => $e->getMessage()
                 ]
-            ]);
+            ];
         }
     }
 
@@ -2005,7 +2050,7 @@ class FichaPagosController extends Controller
                 is_null($grado->fec_rvoe) or $grado->fec_rvoe == "" or
                 is_null($grado->rvoe) or $grado->rvoe == ""
             ) {
-                dd("Uno o mÃ¡s datos no estan definidos en el grado con id:" . $grado->id);
+                dd("Uno o mÃƒÂ¡s datos no estan definidos en el grado con id:" . $grado->id);
             }
 
             $objetosArray = array();
@@ -3199,15 +3244,15 @@ class FichaPagosController extends Controller
                             "doc" => $pago1->uuid,
                             "to" => $cliente->fmail,
                             //"from": "Nombre para mostrar del remitente (opcional)",
-                            //"cc"=>"DirecciÃ³n de correo cc (opcional)",opcional
-                            //"cco"=>"DirecciÃ³n de correo de copia oculta (opcional)",
-                            //"reply"=>"DirecciÃ³n de correo de respuesta (opcional)",
+                            //"cc"=>"DirecciÃƒÂ³n de correo cc (opcional)",opcional
+                            //"cco"=>"DirecciÃƒÂ³n de correo de copia oculta (opcional)",
+                            //"reply"=>"DirecciÃƒÂ³n de correo de respuesta (opcional)",
                             "subject" => "Factura" . $plantel->nombre_corto,
                             //"body"=>"Cuerpo del mensaje de correo (opcional)",
                             //"tpo"=>"cfdi/cr (opcional)",
                             //"res"=>"(Opcional) tipo de resultado deseado",
                             "res" => "both",
-                            //"pln"=>"(Opcional) Identificador de plantilla de representaciÃ³n impresa"
+                            //"pln"=>"(Opcional) Identificador de plantilla de representaciÃƒÂ³n impresa"
                         );
                         $client = new Client(['base_uri' => $url]);
                         $response = $client->post("enviar/", [
@@ -3290,15 +3335,15 @@ class FichaPagosController extends Controller
                             "doc" => $pago1->uuid,
                             "to" => $cliente->fmail,
                             //"from": "Nombre para mostrar del remitente (opcional)",
-                            //"cc"=>"DirecciÃ³n de correo cc (opcional)",opcional
-                            //"cco"=>"DirecciÃ³n de correo de copia oculta (opcional)",
-                            //"reply"=>"DirecciÃ³n de correo de respuesta (opcional)",
+                            //"cc"=>"DirecciÃƒÂ³n de correo cc (opcional)",opcional
+                            //"cco"=>"DirecciÃƒÂ³n de correo de copia oculta (opcional)",
+                            //"reply"=>"DirecciÃƒÂ³n de correo de respuesta (opcional)",
                             "subject" => "Factura" . $plantel->nombre_corto,
                             //"body"=>"Cuerpo del mensaje de correo (opcional)",
                             //"tpo"=>"cfdi/cr (opcional)",
                             //"res"=>"(Opcional) tipo de resultado deseado",
                             "res" => "both",
-                            //"pln"=>"(Opcional) Identificador de plantilla de representaciÃ³n impresa"
+                            //"pln"=>"(Opcional) Identificador de plantilla de representaciÃƒÂ³n impresa"
                         );
                         $client = new Client(['base_uri' => $url]);
                         $response = $client->post("enviar/", [
@@ -3388,10 +3433,10 @@ class FichaPagosController extends Controller
                 "content" => http_build_query($data), # Agregar el contenido definido antes
             ),
         );
-        # Preparar peticiÃ³n
+        # Preparar peticiÃƒÂ³n
         $contexto = stream_context_create($opciones);
 
-        //*****para ver el flujo durante la invocaciÃ³n
+        //*****para ver el flujo durante la invocaciÃƒÂ³n
         $flujo = fopen($url, 'r', false, $contexto);
         stream_set_blocking($flujo, false);
         //***************
@@ -3413,7 +3458,7 @@ class FichaPagosController extends Controller
         if ($data["success"] == true) {
             /*echo "<br>";
 			echo "<br>";
-			echo "<label>Puede descargar el zip dando click en el botÃ³n </label>";
+			echo "<label>Puede descargar el zip dando click en el botÃƒÂ³n </label>";
 			echo "<a href='".$data["data"]["link"]."'><button style='background:green;'>Descargar</button></a>";
 			*/
             return redirect()->away($data["data"]["link"]);
@@ -3459,7 +3504,7 @@ class FichaPagosController extends Controller
         $objetoXML->writeAttribute("Rfc", $emisor["Rfc"]);
         $objetoXML->writeAttribute("Nombre", $emisor["Nombre"]);
         $objetoXML->writeAttribute("RegimenFiscal", $emisor["RegimenFiscal"]);
-        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros tÃ©cnicos.
+        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros tÃƒÂ©cnicos.
 
         //dd($receptor);
         $objetoXML->startElement('cfdi:Receptor');
@@ -3468,7 +3513,7 @@ class FichaPagosController extends Controller
         $objetoXML->writeAttribute("DomicilioFiscalReceptor", $receptor["DomicilioFiscalReceptor"]);
         $objetoXML->writeAttribute("UsoCFDI", $receptor["UsoCFDI"]);
         $objetoXML->writeAttribute("RegimenFiscalReceptor", $receptor["RegimenFiscalReceptor"]);
-        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros tÃ©cnicos.
+        $objetoXML->endElement(); // Final del elemento que cubre todos los miembros tÃƒÂ©cnicos.
 
         $objetoXML->startElement('cfdi:Conceptos');
         //foreach ($conceptos as $concepto) {
