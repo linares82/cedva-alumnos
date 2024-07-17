@@ -52,7 +52,7 @@
     </div>
     <div class="row">
 
-    @if(count($peticionesOpenpay)>0)
+    @if(!is_null(($peticionesOpenpay)) and count($peticionesOpenpay)>0)
     <div class="col-sm-6 col-sm-offset-3">
         <div class="widget-box">
             <div class="widget-header">
@@ -107,7 +107,7 @@
                         <label for="forma_pago_id" class="control-label">Forma Pago</label>
 
                         <select class="form-control chosen" id="forma_pago_id" name="forma_pago_id" required="true">
-                            <option value=""   selected>Seleccionar opciÃ³n</option>
+                            <option value=""   selected>Seleccionar opción</option>
                             @foreach ($forma_pagos as $key => $forma_pago)
                                 <option value="{{ $key }}">
                                     {{ $forma_pago }}
@@ -126,7 +126,7 @@
                         <input type="text" value="{{ $adeudo_pago_online->cliente->ape_paterno }} {{ $adeudo_pago_online->cliente->ape_materno }}" id="last_name" placeholder="Apellidos" class="col-xs-12 col-sm-12">
                         </div>
                         <div class="col-sm-12">
-                        <label for="phone_number">TelÃ©fono</label>
+                        <label for="phone_number">Teléfono</label>
                         <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="TelÃ©fono" class="col-xs-12 col-sm-12">
                         </div>
                         <div class="col-sm-12">

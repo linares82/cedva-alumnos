@@ -1060,7 +1060,7 @@ class FichaPagosController extends Controller
             $datosOpenpay['pmethod'] = $pago->formaPago->cve_multipagos;
             $datosOpenpay['pamount'] = number_format((float) $pago->monto, 2, '.', '');
             $datosOpenpay['porder_id'] = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
-            $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('Ymd');
+            $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'];
             $datosOpenpay['p_send_mail'] = false;
             $datosOpenpay['pconfirm'] = false;
             $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
@@ -1105,7 +1105,7 @@ class FichaPagosController extends Controller
             }
 
             //Manipulacion de fecha
-            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-16 21:00:00')->toDateTimeString();
+            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-17 21:00:00')->toDateTimeString();
             //Fin manipulacion de fecha
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;
