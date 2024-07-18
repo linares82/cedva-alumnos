@@ -127,7 +127,7 @@
                         </div>
                         <div class="col-sm-12">
                         <label for="phone_number">Teléfono</label>
-                        <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="TelÃ©fono" class="col-xs-12 col-sm-12">
+                        <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="Teléfono" class="col-xs-12 col-sm-12">
                         </div>
                         <div class="col-sm-12">
                         <label for="email">Email</label>

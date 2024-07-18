@@ -587,7 +587,7 @@ class FichaPagosController extends Controller
         $peticionesOpenpay=null;
         if(!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id>0){
             $peticionesOpenpayCard=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
-            ->whereDate('fecha_limite','>=',date('Y-m-d'))
+            //->where('fecha_limite','>=',date('Y-m-d'))
             ->whereIn('pmethod',array('card'));
             $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
             ->whereIn('pmethod',array('bank_account','store'))
@@ -596,7 +596,9 @@ class FichaPagosController extends Controller
             ->get();
             //dd($peticionesOpenpay);
             if(count($peticionesOpenpay)>0){
-                $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)->pluck('pmethod');
+                $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+                ->where('rstatus','<>','cancelled')
+                ->pluck('pmethod');
             }
             //dd($formas_pago_peticiones);
         }
@@ -931,7 +933,11 @@ class FichaPagosController extends Controller
             //dd($resultado);
 
             if($resultado->pmethod=="card" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled" and $resultado->pamount==$pago->monto){
-                return response()->json(array('method'=>'card', 'url'=>$resultado->rpayment_method_url));
+                return response()->json(array(
+                    'method'=>'card',
+                    'url'=>$resultado->rpayment_method_url,
+                    'error'=> null
+                ));
             }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
                 $openpay_productivo=Param::where('llave','openpay_productivo')->first();
@@ -1087,7 +1093,7 @@ class FichaPagosController extends Controller
                 }
 
             }elseif($datosOpenpay['pmethod']=="bank_account"){
-                $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 16:00:00");
+                $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 23:00:00");
                 //Manipulacion de fecha
                 //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
                 //Fin manipulacion de fecha
@@ -1112,12 +1118,12 @@ class FichaPagosController extends Controller
             }
 
             //Manipulacion de fecha
-            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-17 21:00:00')->toDateTimeString();
+            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-18 23:00:00')->toDateTimeString();
             //Fin manipulacion de fecha
             $datosOpenpay['usu_alta_id'] = Auth::user()->id;
             $datosOpenpay['usu_mod_id'] = Auth::user()->id;
 
-            dd($datosOpenpay);
+            //dd($datosOpenpay);
             $peticionOpenpay = PeticionOpenpay::create($datosOpenpay);
 
             if ($peticionOpenpay->pmethod == 'card') {
