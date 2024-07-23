@@ -96,8 +96,11 @@ class FichaPagosController extends Controller
             ->get();
         //dd($adeudo_pago_online->toArray());
         $secciones_validas = Seccion::select('id', 'name')->get();
+        $planteles_openpay_activos=Param::where('llave','openpay_planteles_activos')->first();
+        //dd($planteles_openpay_activos->valor);
+        $planteles_open_activos=explode(',',$planteles_openpay_activos->valor);
 
-        return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas'));
+        return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas','planteles_open_activos'));
     }
 
     public function actualizarAdeudosPagos($cliente, $plantel)
