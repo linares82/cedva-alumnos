@@ -34,22 +34,25 @@ use App\SuccessMultipago;
 use Openpay\Data\Openpay;
 use App\NivelEducativoSat;
 use App\PeticionMultipago;
+use GuzzleHttp\Middleware;
+
 use App\CombinacionCliente;
-
 use Illuminate\Support\Str;
-use Illuminate\Http\Request;
 
+use Illuminate\Http\Request;
 use App\SerieFolioSimplificado;
 use Illuminate\Http\JsonResponse;
 use Openpay\Data\OpenpayApiError;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
+use Illuminate\Support\Facades\Auth;
 use Openpay\Data\OpenpayApiAuthError;
 use Illuminate\Support\Facades\Session;
 use Luecano\NumeroALetras\NumeroALetras;
 use Openpay\Data\OpenpayApiRequestError;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
 use Openpay\Data\OpenpayApiConnectionError;
 use Illuminate\Support\Facades\Notification;
 use Openpay\Data\OpenpayApiTransactionError;
@@ -96,11 +99,9 @@ class FichaPagosController extends Controller
             ->get();
         //dd($adeudo_pago_online->toArray());
         $secciones_validas = Seccion::select('id', 'name')->get();
-        $planteles_openpay_activos=Param::where('llave','openpay_planteles_activos')->first();
-        //dd($planteles_openpay_activos->valor);
-        $planteles_open_activos=explode(',',$planteles_openpay_activos->valor);
 
-        return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas','planteles_open_activos'));
+
+        return view('fichaPagos.index', compact('cliente', 'adeudo_pago_online', 'combinaciones', 'secciones_validas'));
     }
 
     public function actualizarAdeudosPagos($cliente, $plantel)
@@ -607,8 +608,16 @@ class FichaPagosController extends Controller
         }
 
         $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->whereNotIn('cve_multipagos', $formas_pago_peticiones)->pluck('name', 'id');
+        $openpay_productivo=Param::where('llave','openpay_productivo')->value('valor');
+        $openpay_url="";
+        if($openpay_productivo==1){
+            $openpay_url=Param::where('llave','url_openpay_token_productivo')->value('valor');
+        }else{
+            $openpay_url=Param::where('llave','url_open_pay_token_sandbox')->value('valor');
+        }
+
         //dd($url_recibo_generico);
-        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos','peticionesOpenpay'));
+        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos','peticionesOpenpay','openpay_url','plantel','openpay_productivo'));
     }
     public function verDetalle(Request $request)
     {
@@ -815,6 +824,49 @@ class FichaPagosController extends Controller
         ], 200);
     }
 
+    public function tokenOpenpay(Request $request){
+        $datos=$request->all();
+        $ip = Param::where('llave', 'ip_localhost')->first();
+        $plantel=Plantel::find($datos['plantel']);
+        $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
+        $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
+        $url_openpay="";
+        if ($openpay_productivo->valor == 1) {
+            $url_openpay=$openpay_productivo = Param::where('llave', 'url_openpay_token_productivo')->value('valor');
+        } else {
+            $url_openpay=$openpay_productivo = Param::where('llave', 'url_open_pay_token_sandbox')->value('valor');
+        }
+
+        $body=json_encode([
+            'holder_name'=> $datos['holder_name'],
+            "card_number"=> $datos['card_number'],
+            "cvv2"=> $datos['cvv2'],
+            'expiration_month'=> $datos['expiration_month'],
+            'expiration_year'=> $datos['expiration_year'],
+        ]);
+
+
+        $url = $url_openpay."/v1/".$plantel->oid."/tokens";
+
+        $curl = curl_init();
+
+        $curlOptions = [
+            CURLOPT_URL => $url,
+            CURLOPT_USERPWD => $plantel->oprivada.":",
+            CURLOPT_HTTPHEADER => array('Content-type: application/json'),
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_RETURNTRANSFER=>true
+        ];
+
+        curl_setopt_array($curl, $curlOptions);
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+
+        return $response;
+    }
     public function crearCajaPagoPeticionOpenpay(Request $request)
     {
         $datos = $request->all();
@@ -932,10 +984,22 @@ class FichaPagosController extends Controller
         $prefijo_matricula_instalacion=Param::where('llave','prefijo_matricula_instalacion')->first();
         $order_id_card = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
         if (!is_null($existePeticion)) {
+
             $resultado = $this->pagoExistente($existePeticion, $plantel);
-            //dd($resultado);
+
+            if(isset($resultado['error'])){
+                //dd($resultado['error']['error_code']."-".$resultado['error']['description']);
+                return response()->json(array(
+                            'method'=>$pago->formaPago->cve_multipagos,
+                            'url'=>'',
+                            'error'=> $resultado['error']
+                        ));
+
+                }
+
 
             if($resultado->pmethod=="card" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled" and $resultado->pamount==$pago->monto){
+
                 return response()->json(array(
                     'method'=>'card',
                     'url'=>$resultado->rpayment_method_url,
@@ -1063,7 +1127,8 @@ class FichaPagosController extends Controller
             'datos' => $datosMultipagos,
         ], 200);
         */
-        if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
+        //dd($adeudo_pago_online);
+        //if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
 
             $datosOpenpay = array();
             $datosOpenpay['pago_id'] = $pago->id;
@@ -1085,6 +1150,8 @@ class FichaPagosController extends Controller
             if($datosOpenpay['pmethod']=="card"){
                 $due_date=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
                 $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('Ymd');
+                $datosOpenpay['use_3d_secure'] = true;
+                $datosOpenpay['token_3d_secure'] = $datos['token_3d_secure'];
                 //Manipulacion de fecha
                 //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
                 //Fin manipulacion de fecha
@@ -1140,8 +1207,8 @@ class FichaPagosController extends Controller
                 $respuesta = $this->pagoTiendas($peticionOpenpay, $plantel);
                 return response()->json($respuesta);
             }
-        } else {
-        }
+        /*} else {
+        }*/
     }
 
     public function pagoTarjeta($peticionOpenpay, $plantel)
@@ -1179,6 +1246,8 @@ class FichaPagosController extends Controller
                 'confirm' => $peticionOpenpay->pconfirm,
                 'redirect_url' => $peticionOpenpay->predirect_url,
                 'order_id' => $peticionOpenpay->porder_id,
+                "use_3d_secure"=> true,
+                "source_id"=> $peticionOpenpay->token_3d_secure
             );
             $charge = $openpay->charges->create($chargeRequest);
 
@@ -1411,18 +1480,15 @@ class FichaPagosController extends Controller
         //dd($peticionExistente);
         try {
             // create instance OpenPay
-
             return $this->buscarOpenpay($peticionExistente, $plantel);
-
-
         } catch (Exception $e) {
-
-            return response()->json([
+            //dd($e);
+            return [
                 'error' => [
                     'error_code' => $e->getCode(),
                     'description' => $e->getMessage()
                 ]
-            ]);
+            ];
         }
     }
 

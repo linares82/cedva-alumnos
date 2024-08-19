@@ -201,6 +201,14 @@ Route::get(
     )
 )->middleware('auth');
 Route::get(
+    '/fichaAdeudos/tokenOpenpay',
+    array(
+        'as' => 'fichaAdeudos.tokenOpenpay',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@tokenOpenpay'
+    )
+)->middleware('auth');
+Route::get(
     'inscripcions/historialAcademico',
     array(
         'as' => 'inscripcions.historialAcademico',

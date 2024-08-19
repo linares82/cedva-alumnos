@@ -107,7 +107,7 @@
                         <label for="forma_pago_id" class="control-label">Forma Pago</label>
 
                         <select class="form-control chosen" id="forma_pago_id" name="forma_pago_id" required="true">
-                            <option value=""   selected>Seleccionar opción</option>
+                            <option value="" selected>Seleccionar opción</option>
                             @foreach ($forma_pagos as $key => $forma_pago)
                                 <option value="{{ $key }}">
                                     {{ $forma_pago }}
@@ -116,8 +116,37 @@
                         </select>
 
                         </div>
+                        <div class="clearfix form-actions" id="datos-tarjeta" style='display: none'>
+                            <div class="col-md-offset-0 col-md-11">
+                            <div class="col-sm-12">
+                                <label for="name">Datos-Tarjeta</label><br>
+
+                                <div class="col-md-24">
+                                    <label>Titular</label>
+                                    <input type="text" autocomplete="off" id="holder_name" placeholder="" maxlength="16" >
+                                </div>
+                                <div class="col-md-24">
+                                    <label>Número de tarjeta</label>
+                                    <input type="text" autocomplete="off" id="card_number" placeholder="0000 0000 0000 0000" maxlength="16" >
+                                </div>
+                                <div class="col-sm-24">
+                                    <label>Fecha de expiración</label>
+                                    <input type="text" placeholder="Mes, 2 digitos" id="expiration_month" maxlength="2">
+                                    <input type="text" placeholder="Año, 2 digitos" id="expiration_year" maxlength="2">
+                                </div>
+                                <div class="col-sm-24">
+                                    <label>Codigo de Seguridad</label>
+                                    <input type="text" placeholder="3 dígitos" autocomplete="off" id="cvv2" maxlength="3" >
+                                </div>
+
+                            </div>
+                            </div>
+                        </div>
+
 
                         <div class="col-sm-12">
+                            <input type="hidden" name="token_3d_secure" id="token_3d_secure">
+                            <div id="loading_seguridad" style="display:none;"><span class="text-success">Protegiendo informacion ...</span></div>
                             <label for="name">Nombre(s)</label>
                             <input type="text"  value="{{ $adeudo_pago_online->cliente->nombre }} {{ $adeudo_pago_online->cliente->nombre2 }}" id="name" placeholder="Nombre(s)" class="col-xs-12 col-sm-12">
                         </div>
@@ -162,30 +191,26 @@
         </div>
     </div>
 </div>
-<div id="formulario_multipagos">
-    <form method="post" id="frm_multipagos" action="about:blank">
-        <input type="hidden" name="mp_account" id="mp_account" value="">
-        <input type="hidden" name="mp_product" id="mp_product" value="">
-        <input type="hidden" name="mp_order" id="mp_order" value="">
-        <input type="hidden" name="mp_reference" id="mp_reference" value="">
-        <input type="hidden" name="mp_node" id="mp_node" value="">
-        <input type="hidden" name="mp_concept" id="mp_concept" value="">
-        <input type="hidden" name="mp_amount" id="mp_amount" value="">
-        <input type="hidden" name="mp_customername" id="mp_customername" value="">
-        <input type="hidden" name="mp_currency" id="mp_currency" value="">
-        <input type="hidden" name="mp_signature" id="mp_signature" value="">
-        <input type="hidden" name="mp_urlsuccess" id="mp_urlsuccess" value="">
-        <input type="hidden" name="mp_urlfailure" id="mp_urlfailure" value="">
-        <input type="hidden" name="mp_paymentmethod" id="mp_paymentmethod" value="">
-        <input type="hidden" name="mp_datereference" id="mp_datereference" value="">
-    </form>
-</div>
+
 
 @endsection
 
 @push('scripts')
+<script type="text/javascript"
+        src="https://js.openpay.mx/openpay.v1.min.js"></script>
+<script type='text/javascript'
+  src="https://js.openpay.mx/openpay-data.v1.min.js"></script>
 <script type="text/javascript">
 $(document).ready(function(){
+    $('#forma_pago_id').change(function(){
+        let posicion = $('#forma_pago_id option:selected').text().toLowerCase().indexOf('tarjeta');
+        if(posicion>0){
+            $("#datos-tarjeta").show();
+        }else{
+            $("#datos-tarjeta").hide();
+        }
+
+    });
 
     $(document).on('click', '.enviarForm', function(e) {
         $('#content').html('<div class="loading"><img src="{{ asset('img/ajax-loader.gif') }}" alt="loading" /><br/>Un momento, por favor...</div>');
@@ -195,7 +220,7 @@ $(document).ready(function(){
             type: 'POST',
             data: {
                 '_token': $('input[name=_token]').val(),
-                "adeudo_pago_online_id":{{ $adeudo_pago_online->id }},
+                "adeudo_pago_online_id":"{{ $adeudo_pago_online->id }}",
                 "forma_pago_id": $(this).data('forma_pago_id'),
                 'name': $(this).data('name'),
                 'last_name': $(this).data('last_name'),
@@ -224,6 +249,14 @@ $(document).ready(function(){
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
         let forma_pago=$("#forma_pago_id option:selected").text();
+
+        let posicion = $('#forma_pago_id option:selected').text().toLowerCase().indexOf('tarjeta');
+        holder_name=$("#holder_name").val();
+        card_number=$("#card_number").val();
+        expiration_month=$("#expiration_month").val();
+        expiration_year=$("#expiration_year").val();
+        cvv2=$("#cvv2").val();
+
         //console.log(forma_pago);
         let name=$("#name").val();
         let last_name=$("#last_name").val();
@@ -232,16 +265,62 @@ $(document).ready(function(){
         //console.log(forma_pago);
         if(forma_pago==="Seleccionar opción" || name==="" || last_name==='' || phone_number==="" || email===""){
             alert('Todos los campos son necesarios.');
+        }else if(posicion>0){
+            if(card_number=="" || expiration_month=="" || expiration_year=="" ||cvv2=="" || holder_name==""){
+                alert('Para un pago con Tarjeta debe capturar todos sus campos respectivos.');
+            }else{
 
+
+                $.ajax({
+                    url: "{{route('fichaAdeudos.tokenOpenpay')}}",
+                    type: 'GET',
+                    data: {
+                        'holder_name': holder_name,
+                        "card_number": card_number,
+                        "cvv2": cvv2,
+                        'expiration_month': expiration_month,
+                        'expiration_year': expiration_year,
+                        'plantel':"{{$plantel->id}}"
+                    },
+                    beforeSend : function(){
+                        $("#loading_seguridad").show();
+                    },
+                    complete : function(){$("#loading_seguridad").hide();},
+                    success: function(data){
+                        datos=JSON.parse(data);
+                        //console.log();
+                        $("#token_3d_secure").val(datos.id);
+                        //console.log($("#token_3d_secure").val());
+                        enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,datos.id);
+                    }
+                });
+
+            }
         }else{
+            enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,null);
+        }
+    });
+});
 
-        bootbox.confirm({
+
+
+
+
+function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,token_3d_secure){
+
+    bootbox.confirm({
             message: `Confirmar datos de pago: <br>
                     Forma de pago: ${forma_pago} <br>
                     Nombre: ${name} <br>
                     Apellidos: ${last_name} <br>
                     Teléfono: ${phone_number} <br>
-                    Email: ${email}
+                    Email: ${email} <br>
+                    Titular: ${holder_name} <br>
+                    No. tarjeta: ${card_number}<br>
+                    CVV: ${cvv2} <br>
+                    Mes Vencimiento: ${expiration_month} <br>
+                    Año Vencimiento: ${expiration_year} <br>
+                    seguridad: ${token_3d_secure}
                     `,
             buttons: {
                 confirm: {
@@ -267,6 +346,12 @@ $(document).ready(function(){
                             'last_name':$("#last_name").val(),
                             'phone_number':$("#phone_number").val(),
                             'email':$("#email").val(),
+                            'holder_name': holder_name,
+                            "card_number": card_number,
+                            "cvv2": cvv2,
+                            'expiration_month': expiration_month,
+                            'expiration_year': expiration_year,
+                            'token_3d_secure':token_3d_secure
                         },
                         dataType: 'json',
                         beforeSend : function(){$("#loading13").show();},
@@ -289,9 +374,7 @@ $(document).ready(function(){
             }
             }
         );
-        }
-    });
-});
+}
 
 function formatoFecha(texto){
   return texto.replace(/^(\d{4})-(\d{2})-(\d{2})$/g,'$1/$2/$3');
