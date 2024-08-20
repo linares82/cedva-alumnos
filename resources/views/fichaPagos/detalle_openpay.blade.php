@@ -102,7 +102,7 @@
             <div class="widget-body">
                 <div class="widget-main">
 
-                    <form action="#" method="POST">
+                    <form action="#" method="POST" id="payment-form">
                         <div class="col-sm-12">
                         <label for="forma_pago_id" class="control-label">Forma Pago</label>
 
@@ -123,20 +123,20 @@
 
                                 <div class="col-md-24">
                                     <label>Titular</label>
-                                    <input type="text" autocomplete="off" id="holder_name" placeholder="" maxlength="16" >
+                                    <input type="text" autocomplete="off" id="holder_name" data-openpay-card="holder_name" placeholder="" maxlength="16" >
                                 </div>
                                 <div class="col-md-24">
                                     <label>Número de tarjeta</label>
-                                    <input type="text" autocomplete="off" id="card_number" placeholder="0000 0000 0000 0000" maxlength="16" >
+                                    <input type="text" autocomplete="off" id="card_number" data-openpay-card="card_number" placeholder="0000 0000 0000 0000" maxlength="16" >
                                 </div>
                                 <div class="col-sm-24">
                                     <label>Fecha de expiración</label>
-                                    <input type="text" placeholder="Mes, 2 digitos" id="expiration_month" maxlength="2">
-                                    <input type="text" placeholder="Año, 2 digitos" id="expiration_year" maxlength="2">
+                                    <input type="text" placeholder="Mes, 2 digitos" data-openpay-card="expiration_month" id="expiration_month" maxlength="2">
+                                    <input type="text" placeholder="Año, 2 digitos" data-openpay-card="expiration_year" id="expiration_year" maxlength="2">
                                 </div>
                                 <div class="col-sm-24">
                                     <label>Codigo de Seguridad</label>
-                                    <input type="text" placeholder="3 dígitos" autocomplete="off" id="cvv2" maxlength="3" >
+                                    <input type="text" placeholder="3 dígitos" autocomplete="off" data-openpay-card="cvv2" id="cvv2" maxlength="3" >
                                 </div>
 
                             </div>
@@ -270,8 +270,25 @@ $(document).ready(function(){
                 alert('Para un pago con Tarjeta debe capturar todos sus campos respectivos.');
             }else{
 
+                OpenPay.setId('{{$plantel->oid}}');
+                OpenPay.setApiKey('{{$plantel->opublica}}');
+                OpenPay.setSandboxMode({{$openpay_productivo ? false : true}});
 
-                $.ajax({
+                var deviceSessionId = OpenPay.deviceData.setup("payment-form", "deviceIdHiddenFieldName");
+
+                OpenPay.token.extractFormAndCreate('payment-form',
+                function(response) {
+
+                    var token_id = response.data.id;
+                    $('#token_3d_secure').val(token_id);
+                    enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,token_id,deviceSessionId);
+                },
+                error_callbak);
+                console.log('formulario completo')
+                console.log($('payment-form').serialize());
+
+
+                /*$.ajax({
                     url: "{{route('fichaAdeudos.tokenOpenpay')}}",
                     type: 'GET',
                     data: {
@@ -291,10 +308,10 @@ $(document).ready(function(){
                         //console.log();
                         $("#token_3d_secure").val(datos.id);
                         //console.log($("#token_3d_secure").val());
-                        enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,datos.id);
+                        //enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,datos.id);
                     }
                 });
-
+                */
             }
         }else{
             enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,null);
@@ -302,11 +319,21 @@ $(document).ready(function(){
     });
 });
 
+var success_callbak = function(response) {
+                console.log(response);
+              /*var token_id = response.data.id;
+              $('#token_id').val(token_id);
+              $('#payment-form').submit();*/
+};
 
+var error_callbak = function(response) {
+     var desc = response.data.description != undefined ?
+        response.data.description : response.message;
+     alert("ERROR [" + response.status + "] " + desc);
+     //$("#pay-button").prop("disabled", false);
+};
 
-
-
-function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,token_3d_secure){
+function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,card_number,cvv2,expiration_month,expiration_year,token_3d_secure,device){
 
     bootbox.confirm({
             message: `Confirmar datos de pago: <br>
@@ -320,7 +347,8 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                     CVV: ${cvv2} <br>
                     Mes Vencimiento: ${expiration_month} <br>
                     Año Vencimiento: ${expiration_year} <br>
-                    seguridad: ${token_3d_secure}
+                    seguridad: ${token_3d_secure}<br>
+                    device: ${device}
                     `,
             buttons: {
                 confirm: {
@@ -351,7 +379,8 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                             "cvv2": cvv2,
                             'expiration_month': expiration_month,
                             'expiration_year': expiration_year,
-                            'token_3d_secure':token_3d_secure
+                            'token_3d_secure':token_3d_secure,
+                            'device':device
                         },
                         dataType: 'json',
                         beforeSend : function(){$("#loading13").show();},
@@ -359,6 +388,9 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                         success: function(data){
                             if(data.method==="card" && data.error===null){
                                 window.location.replace(data.url);
+                            }else if(data.method==="card-expirado"){
+                                alert('operacion expirada, repetir peticion de pago');
+                                location.reload();
                             }else if(data.method==="bank_account" && data.error===null){
                                 window.open(data.url);
                             }else if(data.method==="store" && data.error===null){

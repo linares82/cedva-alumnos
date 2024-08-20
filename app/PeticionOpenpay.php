@@ -29,7 +29,7 @@ class PeticionOpenpay extends Model
     'rpayment_method_barcode_paybin_url',
     'rpayment_method_reference','rcustomer','rorder_id','dispositivo','navegador',
     'contador_peticiones','usu_alta_id', 'usu_mod_id','bnd_pagado','notificacion_pagado',
-    'use_3d_secure','token_3d_secure'
+    'use_3d_secure','token_3d_secure','device'
 ];
 
 

@@ -982,10 +982,11 @@ class FichaPagosController extends Controller
             ->first();
         //dd($plantel);
         $prefijo_matricula_instalacion=Param::where('llave','prefijo_matricula_instalacion')->first();
-        $order_id_card = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
+        $order_id_card = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('YmdHi');
         if (!is_null($existePeticion)) {
 
             $resultado = $this->pagoExistente($existePeticion, $plantel);
+            //dd($resultado);
 
             if(isset($resultado['error'])){
                 //dd($resultado['error']['error_code']."-".$resultado['error']['description']);
@@ -996,13 +997,24 @@ class FichaPagosController extends Controller
                         ));
 
                 }
+            //dd($resultado->toArray());
 
 
-            if($resultado->pmethod=="card" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled" and $resultado->pamount==$pago->monto){
-
+            if($resultado->pmethod=="card" and
+                $resultado->rstatus<>"completed" and
+                $resultado->rstatus<>"cancelled" and
+                $resultado->rstatus<>"expired" and
+                $resultado->pamount==$pago->monto){
                 return response()->json(array(
                     'method'=>'card',
                     'url'=>$resultado->rpayment_method_url,
+                    'error'=> null
+                ));
+            }if($resultado->pmethod=="card" and $resultado->rstatus<>"expired" ){
+                $resultado->delete();
+                return response()->json(array(
+                    'method'=>'card-expirado',
+                    'url'=>null,
                     'error'=> null
                 ));
             }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
@@ -1141,6 +1153,7 @@ class FichaPagosController extends Controller
             $datosOpenpay['pmethod'] = $pago->formaPago->cve_multipagos;
             $datosOpenpay['pamount'] = number_format((float) $pago->monto, 2, '.', '');
             $datosOpenpay['porder_id'] = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
+
             $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'];
             $datosOpenpay['p_send_mail'] = false;
             $datosOpenpay['pconfirm'] = false;
@@ -1149,9 +1162,10 @@ class FichaPagosController extends Controller
             $due_date=null;
             if($datosOpenpay['pmethod']=="card"){
                 $due_date=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
-                $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('Ymd');
+                $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('YmdHi');
                 $datosOpenpay['use_3d_secure'] = true;
                 $datosOpenpay['token_3d_secure'] = $datos['token_3d_secure'];
+                $datosOpenpay['device'] = $datos['device'];
                 //Manipulacion de fecha
                 //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
                 //Fin manipulacion de fecha
@@ -1237,20 +1251,23 @@ class FichaPagosController extends Controller
             );
 
             // create object charge
-            $chargeRequest =  array(
+            //dd('antes');
+            $chargeData =  array(
                 'method' => $peticionOpenpay->pmethod,
+                "source_id"=> $peticionOpenpay->token_3d_secure,
                 'amount' => $peticionOpenpay->pamount,
                 'description' => $peticionOpenpay->pdescription,
-                'customer' => $customer,
-                'send_email' => $peticionOpenpay->psend_mail,
-                'confirm' => $peticionOpenpay->pconfirm,
-                'redirect_url' => $peticionOpenpay->predirect_url,
                 'order_id' => $peticionOpenpay->porder_id,
+                "device_session_id" => $peticionOpenpay->device,
+                'customer' => $customer,
                 "use_3d_secure"=> true,
-                "source_id"=> $peticionOpenpay->token_3d_secure
+                //"capture"=>false
+                //'send_email' => $peticionOpenpay->psend_mail,
+                //'confirm' => $peticionOpenpay->pconfirm,
+                'redirect_url' => $peticionOpenpay->predirect_url,
             );
-            $charge = $openpay->charges->create($chargeRequest);
-
+            $charge = $openpay->charges->create($chargeData);
+            //dd($charge);
             //dd($charge->serializableData['conciliated']);
             //dd($charge->serializableData);
             $peticionOpenpay->rid = $charge->id;
@@ -1259,18 +1276,19 @@ class FichaPagosController extends Controller
             $peticionOpenpay->roperation_type = $charge->operation_type;
             $peticionOpenpay->rtransaction_type = $charge->transaction_type;
             $peticionOpenpay->rstatus = $charge->status;
-            $peticionOpenpay->rconciliated = $charge->conciliated;
+            //$peticionOpenpay->rconciliated = $charge->conciliated;
             $peticionOpenpay->rcreation_date = Carbon::parse($charge->creation_date)->format('Y-m-d H:i:s');
             $peticionOpenpay->roperation_date = Carbon::parse($charge->operation_date)->format('Y-m-d H:i:s');
             $peticionOpenpay->rdescription = $charge->description;
             $peticionOpenpay->rerror_message = $charge->error_message;
             $peticionOpenpay->ramount = $charge->amount;
             $peticionOpenpay->rcurrency = $charge->currency;
-            $peticionOpenpay->rpayment_method_type = $charge->payment_method->type;
+            //$peticionOpenpay->rpayment_method_type = $charge->payment_method->type;
             $peticionOpenpay->rpayment_method_url = $charge->payment_method->url;
             $peticionOpenpay->rorder_id = $charge->order_id;
             //$peticionOpenpay->rcustomer=json_encode($charge->customer);
             $peticionOpenpay->save();
+
             //dd($peticionOpenpay);
             return array(
                 "method" => $peticionOpenpay->pmethod,
