@@ -136,7 +136,7 @@
                                 </div>
                                 <div class="col-sm-24">
                                     <label>Codigo de Seguridad</label>
-                                    <input type="text" placeholder="3 dígitos" autocomplete="off" data-openpay-card="cvv2" id="cvv2" maxlength="3" >
+                                    <input type="text" placeholder="3 dígitos" autocomplete="off" data-openpay-card="cvv2" id="cvv2" maxlength="4" >
                                 </div>
 
                             </div>
@@ -233,6 +233,9 @@ $(document).ready(function(){
             success: function(data){
                 if(data.method==="card" && data.error===null){
                     window.location.replace(data.url);
+				}else if(data.method==="card-expirado"){
+                    alert('operacion expirada o fallida, repetir peticion de pago');
+                    location.reload();
                 }else if(data.method==="bank_account" && data.error===null){
                     window.open(data.url);
                 }else if(data.method==="store" && data.error===null){

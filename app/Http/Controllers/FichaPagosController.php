@@ -595,13 +595,14 @@ class FichaPagosController extends Controller
             ->whereIn('pmethod',array('card'));
             $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
             ->whereIn('pmethod',array('bank_account','store'))
-            ->where('rstatus','<>','cancelled')
+            //->where('rstatus','<>','cancelled')
             ->union($peticionesOpenpayCard)
             ->get();
             //dd($peticionesOpenpay);
+			//dd($adeudo_pago_online);
             if(count($peticionesOpenpay)>0){
                 $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
-                ->where('rstatus','<>','cancelled')
+                //->where('rstatus','<>','cancelled')
                 ->pluck('pmethod');
             }
             //dd($formas_pago_peticiones);
@@ -876,6 +877,7 @@ class FichaPagosController extends Controller
             ->with('pago')
             ->with('peticionMultipago')
             ->find($datos['adeudo_pago_online_id']);
+	//dd($adeudo_pago_online->toArray());
         $plantel = Plantel::find($adeudo_pago_online->plantel_id);
 
         //Se crea registro de caja si no tiene
@@ -1004,14 +1006,16 @@ class FichaPagosController extends Controller
                 $resultado->rstatus<>"completed" and
                 $resultado->rstatus<>"cancelled" and
                 $resultado->rstatus<>"expired" and
+		$resultado->rstatus<>"failed" and
                 $resultado->pamount==$pago->monto){
                 return response()->json(array(
                     'method'=>'card',
                     'url'=>$resultado->rpayment_method_url,
                     'error'=> null
                 ));
-            }if($resultado->pmethod=="card" and $resultado->rstatus<>"expired" ){
-                $resultado->delete();
+            }if($resultado->pmethod=="card" and ($resultado->rstatus<>"expired" || $resultado->rstatus<>"failed") ){
+                //dd('fil');
+				$resultado->delete();
                 return response()->json(array(
                     'method'=>'card-expirado',
                     'url'=>null,
@@ -1557,6 +1561,8 @@ class FichaPagosController extends Controller
             $peticion->rpayment_method_name = $chargeList[0]->payment_method->name;
             $peticion->rorder_id = $chargeList[0]->order_id;
         }elseif($peticion->pmethod=="card"){
+			//dd($chargeList[0]);
+			//dd($chargeList[0]->payment_method);
             $peticion->rid = $chargeList[0]->id;
             $peticion->rauthorization = $chargeList[0]->authorization;
             $peticion->rmethod = $chargeList[0]->method;
@@ -1570,9 +1576,10 @@ class FichaPagosController extends Controller
             $peticion->rerror_message = $chargeList[0]->error_message;
             $peticion->ramount = $chargeList[0]->amount;
             $peticion->rcurrency = $chargeList[0]->currency;
-            $peticion->rpayment_method_type = $chargeList[0]->payment_method->type;
-            $peticion->rpayment_method_url = $chargeList[0]->payment_method->url;
+            $peticion->rpayment_method_type = optional($chargeList[0]->payment_method)->type;
+            $peticion->rpayment_method_url = optional($chargeList[0]->payment_method)->url;
             $peticion->rorder_id = $chargeList[0]->order_id;
+
         }elseif($peticion->pmethod=="store"){
             $peticion->rid = $chargeList[0]->id;
             $peticion->rauthorization = $chargeList[0]->authorization;
