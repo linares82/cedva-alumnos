@@ -1,6 +1,31 @@
 @extends('layouts.master1')
 
 @section('content')
+<style>
+.card-expl {
+    float: left;
+    height: 80px;
+    margin: 20px 0;
+    width: 800px;
+}
+.card-expl div {
+    background-position: left 45px;
+    background-repeat: no-repeat;
+    height: 70px;
+    padding-top: 10px;
+}
+.card-expl div.debit {
+    background-image: url("{{asset('img/openpay/cards2.png')}}");
+    margin-left: 20px;
+    width: 540px;
+}
+.card-expl div.credit {
+    background-image: url("{{asset('img/openpay/cards1.png')}}");
+    margin-left: 30px;
+    width: 209px;
+}
+
+</style>
 <div class="row">
     <div class="col-md-12"><h1>Datos para el pago</h1></div>
     <div class="col-md-6">
@@ -93,7 +118,7 @@
     </div>
     @endif
 
-    <div class="col-sm-6 col-sm-offset-3">
+    <div class="col-sm-8 col-sm-offset-2">
         <div class="widget-box">
             <div class="widget-header">
                 <h5 class="widget-title">Llenar opciones</h5>
@@ -116,31 +141,45 @@
                         </select>
 
                         </div>
-                        <div class="clearfix form-actions" id="datos-tarjeta" style='display: none'>
-                            <div class="col-md-offset-0 col-md-11">
-                            <div class="col-sm-12">
+                        <div class="col-sm-12 col-sm-offset-0" id="datos-tarjeta" style='display: none'>
+
                                 <label for="name">Datos-Tarjeta</label><br>
 
-                                <div class="col-md-24">
+                                <div class="col-md-6">
                                     <label>Titular</label>
-                                    <input type="text" autocomplete="off" id="holder_name" data-openpay-card="holder_name" placeholder="" maxlength="16" >
+                                    <input type="text" style="width:100%;" autocomplete="off" id="holder_name" data-openpay-card="holder_name" placeholder="" maxlength="16" >
                                 </div>
-                                <div class="col-md-24">
+                                <div class="col-md-6">
                                     <label>Número de tarjeta</label>
-                                    <input type="text" autocomplete="off" id="card_number" data-openpay-card="card_number" placeholder="0000 0000 0000 0000" maxlength="16" >
+                                    <input type="text" style="width:100%;" autocomplete="off" id="card_number" data-openpay-card="card_number" placeholder="0000 0000 0000 0000" maxlength="16" >
                                 </div>
-                                <div class="col-sm-24">
-                                    <label>Fecha de expiración</label>
+                                <div class="col-sm-12">
+                                    <label style="width:100%;">Fecha de expiración</label>
                                     <input type="text" placeholder="Mes, 2 digitos" data-openpay-card="expiration_month" id="expiration_month" maxlength="2">
                                     <input type="text" placeholder="Año, 2 digitos" data-openpay-card="expiration_year" id="expiration_year" maxlength="2">
                                 </div>
-                                <div class="col-sm-24">
-                                    <label>Codigo de Seguridad</label>
-                                    <input type="text" placeholder="3 dígitos" autocomplete="off" data-openpay-card="cvv2" id="cvv2" maxlength="4" >
+                                <div class="col-sm-12">
+                                    <div class="col-sm-6">
+                                        <label>Codigo de Seguridad</label>
+                                        <input type="text" style="width:100%;" placeholder="" autocomplete="off" data-openpay-card="cvv2" id="cvv2" maxlength="4" >
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <img src="{{asset('img/openpay/cvv.png')}}" alt="cvv">
+                                    </div>
+
+                                </div>
+                                <div class="col-sm-3" >
+                                <div class="card-expl">
+                                    <div class="credit"><h6>Tarjetas de crédito</h6></div>
+                                </div>
+                                </div>
+                                <div class="col-sm-9" >
+                                <div class="card-expl">
+                                    <div class="debit"><h6>Tarjetas de débito</h6></div>
+                                </div>
                                 </div>
 
-                            </div>
-                            </div>
+
                         </div>
 
 
@@ -162,11 +201,15 @@
                         <label for="email">Email</label>
                         <input type="text" value="{{ $adeudo_pago_online->cliente->mail }}" id="email" placeholder="email" class="col-xs-12 col-sm-12">
                         </div>
+                        <div class="col-lg-6">
+                            Transacciones realizadas vía: <br>
+                            <img src="{{asset('img/openpay/openpay.png')}}" alt="Logo Openpay">
+                        </div>
+                        <div class="col-sm-6">
+                        <img src="{{asset('img/openpay/security.png')}}" alt="Escudo">
+                        Tus pagos se realizan de forma segura con encriptación de 256 bits
 
-
-
-
-
+                        </div>
 
                         <div class="clearfix form-actions align-center">
                             <div id="content"></div>
