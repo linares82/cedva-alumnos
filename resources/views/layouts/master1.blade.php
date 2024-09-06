@@ -224,6 +224,14 @@
 
                                 <b class="arrow"></b>
                             </li>
+                            <li class="hover">
+                                <a href="{{ route('fichaAdeudos.terminos') }}">
+                                    <i class="menu-icon glyphicon glyphicon-book"></i>
+                                    <span class="menu-text">T. y Condiciones</span>
+                                </a>
+
+                                <b class="arrow"></b>
+                            </li>
 
                             <!--
                             <li class="hover">

@@ -2967,4 +2967,6 @@ class InscripcionsController extends Controller
             'token' => $impresion['token'],
         ));
     }
+
+
 }

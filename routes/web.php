@@ -209,6 +209,14 @@ Route::get(
     )
 )->middleware('auth');
 Route::get(
+    '/fichaAdeudos/terminos',
+    array(
+        'as' => 'fichaAdeudos.terminos',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@terminos'
+    )
+)->middleware('auth');
+Route::get(
     'inscripcions/historialAcademico',
     array(
         'as' => 'inscripcions.historialAcademico',
@@ -216,6 +224,7 @@ Route::get(
         'uses' => 'InscripcionsController@historialAcademico'
     )
 )->middleware('auth');
+
 
 Route::get(
     'inscripcions/lista',

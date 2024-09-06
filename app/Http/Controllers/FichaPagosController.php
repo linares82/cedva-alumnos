@@ -3728,4 +3728,8 @@ class FichaPagosController extends Controller
 
         return $dentro3Meses;
     }
+
+    public function terminos(){
+        return view('fichaPagos.terminos');
+    }
 }
