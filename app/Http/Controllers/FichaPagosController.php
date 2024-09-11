@@ -995,7 +995,8 @@ class FichaPagosController extends Controller
                 return response()->json(array(
                             'method'=>$pago->formaPago->cve_multipagos,
                             'url'=>'',
-                            'error'=> $resultado['error']
+                            'error'=> $resultado['error'],
+                            'error_code' => $resultado['error_code']
                         ));
 
                 }
@@ -1011,7 +1012,8 @@ class FichaPagosController extends Controller
                 return response()->json(array(
                     'method'=>'card',
                     'url'=>$resultado->rpayment_method_url,
-                    'error'=> null
+                    'error'=> null,
+                    'error_code' => null
                 ));
             }if($resultado->pmethod=="card" and ($resultado->rstatus<>"expired" || $resultado->rstatus<>"failed") ){
                 //dd('fil');
@@ -1019,7 +1021,8 @@ class FichaPagosController extends Controller
                 return response()->json(array(
                     'method'=>'card-expirado',
                     'url'=>null,
-                    'error'=> null
+                    'error'=> null,
+                    'error_code' => null
                 ));
             }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
@@ -1032,7 +1035,8 @@ class FichaPagosController extends Controller
                 return response()->json(array(
                     'method'=>'bank_account',
                     'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid,
-                    'error'=> null
+                    'error'=> null,
+                    'error_code' => null
                 ));
             }elseif($resultado->pmethod=="store" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
                 $url_open_pay = "";
@@ -1045,14 +1049,16 @@ class FichaPagosController extends Controller
                 return response()->json(array(
                     'method'=>'store',
                     'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $existePeticion->rpayment_method_reference,
-                    'error'=> null
+                    'error'=> null,
+                    'error_code' => null
                 ));
             }elseif($resultado->rstatus=="completed"){
                 $this->successOpenpay($resultado->rid);
                 return response()->json(array(
                     'method'=>'completado',
                     'url' => route('fichaAdeudos.index'),
-                    'error'=> null
+                    'error'=> null,
+                    'error_code' => null
                 ));
 
             }
@@ -1297,7 +1303,8 @@ class FichaPagosController extends Controller
             return array(
                 "method" => $peticionOpenpay->pmethod,
                 'url' => $peticionOpenpay->rpayment_method_url,
-                'error'=> null
+                'error'=> null,
+                'error_code' => null
             );
         } catch (OpenpayApiTransactionError $e) {
             return [
@@ -1435,7 +1442,8 @@ class FichaPagosController extends Controller
             return array(
                 "method" => $peticionOpenpay->pmethod,
                 'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rid,
-                'error'=> null
+                'error'=> null,
+                'error_code' => null
             );
         } catch (OpenpayApiTransactionError $e) {
             return [
@@ -1684,7 +1692,8 @@ class FichaPagosController extends Controller
             return array(
                 "method" => $peticionOpenpay->pmethod,
                 'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rpayment_method_reference,
-                'error'=> null
+                'error'=> null,
+                'error_code' => null
             );
         } catch (OpenpayApiTransactionError $e) {
             return [

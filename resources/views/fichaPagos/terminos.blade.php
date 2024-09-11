@@ -23,11 +23,11 @@
     <h4>OPCIONES Y FORMAS DE PAGO</h4>
     <p>Todos los precios son sujetos a cambio sin previo aviso.</p>
 
-    <h4>Tarjeta de Crédito vía OpenPay</h4>
-    <p>Aceptamos tarjetas de crédito Visa, Mastercard y American Express por medio de OpenPay. Los pagos mediante Tarjeta de Crédito son registrados de forma inmediata.</p>
+    <h4>Tarjeta de Crédito vía Openpay</h4>
+    <p>Aceptamos tarjetas de crédito Visa, Mastercard y American Express por medio de Openpay. Los pagos mediante Tarjeta de Crédito son registrados de forma inmediata.</p>
 
-    <h4>Tarjeta de Débito vía OpenPay</h4>
-    <p>Aceptamos tarjetas de Débito de las siguientes instituciones bancarias: BANAMEX, HSBC, SCOTIABANK, INBURSA, SANTANDER, IXE Y BANCO AZTECA. Los pagos son procesados por medio del servicio de OpenPay. Los pagos mediante Tarjeta de Crédito son registrados de forma inmediata.</p>
+    <h4>Tarjeta de Débito vía Openpay</h4>
+    <p>Aceptamos tarjetas de Débito de las siguientes instituciones bancarias: BANAMEX, HSBC, SCOTIABANK, INBURSA, SANTANDER, IXE Y BANCO AZTECA. Los pagos son procesados por medio del servicio de Openpay. Los pagos mediante Tarjeta de Crédito son registrados de forma inmediata.</p>
 
     <h4>Depósito Bancario</h4>
     <p>Puede realizar su pago mediante depósito bancario en Bancomer. Los datos para completar su pago son proporcionados al momento de levantar su orden.</p>

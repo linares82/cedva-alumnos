@@ -284,7 +284,12 @@ $(document).ready(function(){
                 }else if(data.method==="store" && data.error===null){
                     window.open(data.url);
                 }else if(data.error!==null){
-                    alert(data.error.description);
+                    if(data.error.error_code===3004 || data.error.error_code===3005 ){
+                        alert("6009: En este momento no es posible procesar su peticion");
+                    }else{
+                        alert(data.error.description);
+                    }
+
                 }else{
                     window.location.replace(data.url);
                 }
@@ -393,8 +398,6 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                     CVV: ${cvv2} <br>
                     Mes Vencimiento: ${expiration_month} <br>
                     Año Vencimiento: ${expiration_year} <br>
-                    seguridad: ${token_3d_secure}<br>
-                    device: ${device}
                     `,
             buttons: {
                 confirm: {
@@ -442,7 +445,11 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                             }else if(data.method==="store" && data.error===null){
                                 window.open(data.url);
                             }else if(data.error!==null){
-                                alert(data.error.description);
+                                if(data.error.error_code===3004 || data.error.error_code===3005 ){
+                                    alert("6009: En este momento no es posible procesar su peticion");
+                                }else{
+                                    alert(data.error.description);
+                                }
                             }else{
                                 window.location.replace(data.url);
                             }

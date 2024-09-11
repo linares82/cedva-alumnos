@@ -181,8 +181,8 @@
                 }
             </script>
 
-            <div class="main-content">
-                <div class="main-content-inner">
+            <div class="main-container">
+
                     <script type="text/javascript">
                         try{ace.settings.loadState('sidebar')}catch(e){}
                     </script>
@@ -247,22 +247,58 @@
                     </div>
 
 
-                    <div class="main-content-inner">
-
-                        <!-- PAGE CONTENT BEGINS -->
-                        <div class="col-xs-12">
-                        @yield('content')
+                    <div class="main-content">
+				        <div class="main-content-inner">
+					        <div class="page-content">
+                                <!-- PAGE CONTENT BEGINS -->
+                                <div class="col-xs-12">
+                                @yield('content')
+                                <br />
+                                <br />
+                                <br />
+                                <br />
+                                <br />
+                                <br />
+                                <br />
+                                <br />
+                                </div>
+                                <!-- PAGE CONTENT ENDS -->
+                            </div>
                         </div>
-                        <!-- PAGE CONTENT ENDS -->
                     </div>
 
 
-                </div>
-            </div><!-- /.main-content -->
+
+            </div><!-- /.main-container -->
 
             <div class="footer">
                 <div class="footer-inner">
                     <div class="footer-content">
+                        <span>
+
+                        Datos de contacto:
+                        Tel: 111 111 1111
+                        Horario de X a Y
+                        Correo Electrónico: xxxxx@xxxx.com
+                        Direccion: XXXXXXX
+
+                        </span>
+                        <br>
+                        <span>
+                        <a href="{{ route('fichaAdeudos.terminos') }}">
+                            <i class="menu-icon glyphicon glyphicon-book"></i>
+                            <span class="menu-text">T. y Condiciones</span>
+                        </a>
+                        </span>
+                        <br>
+                        <span>
+                        <a href="https://www.grupocedva.com/politicas.php" target="blank">
+                            <i class="menu-icon glyphicon glyphicon-book"></i>
+                            <span class="menu-text">Politicas de privacidad</span>
+                        </a>
+                        </span>
+
+                        </div>
                         <span class="bigger-60">
                             Derechos reservados 2019, {{ config('app.name', 'Laravel') }}
                         </span>
