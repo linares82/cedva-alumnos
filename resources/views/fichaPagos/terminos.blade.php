@@ -17,7 +17,6 @@
     </div>
     <div class="col-md-8">
 
-    <h2>TÉRMINOS Y CONDICIONES</h2>
     <p>Términos y Condiciones del pago de la colegiatura </p>
 
     <h4>OPCIONES Y FORMAS DE PAGO</h4>

@@ -276,18 +276,18 @@
                     <div class="footer-content">
                         <span>
 
-                        Datos de contacto:
-                        Tel: 111 111 1111
-                        Horario de X a Y
-                        Correo Electrónico: xxxxx@xxxx.com
-                        Direccion: XXXXXXX
+                        Contacto:
+                        <strong>Tel:</strong> 55 8310 6710 -
+                        <strong>Correo Electrónico:</strong> pagos.openpay@grupocedva.com -
+                        <strong>Direccion:</strong> Sendero Cerrito del Fraile 12 Int. 2 piso Area B14
+                        Col. Fracc Rancho Blanco, Jilotzingo Estado de México CP 54570
 
                         </span>
                         <br>
                         <span>
                         <a href="{{ route('fichaAdeudos.terminos') }}">
                             <i class="menu-icon glyphicon glyphicon-book"></i>
-                            <span class="menu-text">T. y Condiciones</span>
+                            <span class="menu-text">Términos y Condiciones</span>
                         </a>
                         </span>
                         <br>
@@ -300,7 +300,7 @@
 
                         </div>
                         <span class="bigger-60">
-                            Derechos reservados 2019, {{ config('app.name', 'Laravel') }}
+                            Derechos reservados {{date('Y')}}, {{ config('app.name', 'Laravel') }}
                         </span>
 
                     </div>

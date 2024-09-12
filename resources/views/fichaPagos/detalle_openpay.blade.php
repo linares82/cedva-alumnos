@@ -284,7 +284,11 @@ $(document).ready(function(){
                 }else if(data.method==="store" && data.error===null){
                     window.open(data.url);
                 }else if(data.error!==null){
-                    if(data.error.error_code===3004 || data.error.error_code===3005 ){
+                    if(data.error.error_code===3001 ||
+                       data.error.error_code===3002 ||
+                       data.error.error_code===3003 ||
+                       data.error.error_code===3004 ||
+                       data.error.error_code===3005 ||){
                         alert("6009: En este momento no es posible procesar su peticion");
                     }else{
                         alert(data.error.description);
@@ -445,7 +449,11 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                             }else if(data.method==="store" && data.error===null){
                                 window.open(data.url);
                             }else if(data.error!==null){
-                                if(data.error.error_code===3004 || data.error.error_code===3005 ){
+                                if(data.error.error_code===3001 ||
+                                   data.error.error_code===3002 ||
+                                   data.error.error_code===3003 ||
+                                   data.error.error_code===3004 ||
+                                   data.error.error_code===3005 ||){
                                     alert("6009: En este momento no es posible procesar su peticion");
                                 }else{
                                     alert(data.error.description);
