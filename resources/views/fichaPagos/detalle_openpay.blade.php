@@ -288,8 +288,9 @@ $(document).ready(function(){
                        data.error.error_code===3002 ||
                        data.error.error_code===3003 ||
                        data.error.error_code===3004 ||
-                       data.error.error_code===3005 ||){
-                        alert("6009: En este momento no es posible procesar su peticion");
+                       data.error.error_code===3005){
+                        alert("6009: La tarjeta ha sido rechazada por el banco.");
+                        location.reload();
                     }else{
                         alert(data.error.description);
                     }
@@ -453,8 +454,9 @@ function enviarDatos(forma_pago,name,last_name,phone_number,email,holder_name,ca
                                    data.error.error_code===3002 ||
                                    data.error.error_code===3003 ||
                                    data.error.error_code===3004 ||
-                                   data.error.error_code===3005 ||){
-                                    alert("6009: En este momento no es posible procesar su peticion");
+                                   data.error.error_code===3005){
+                                    alert("6009: La tarjeta ha sido rechazada por el banco.");
+                                    location.reload();
                                 }else{
                                     alert(data.error.description);
                                 }
