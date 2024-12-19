@@ -327,6 +327,7 @@ class FichaPagosController extends Controller
             //Calcula descuento por beca
             //********************************* */
             $beca_a = 0;
+            //dd($cliente->autorizacionBecas->toArray());
             foreach ($cliente->autorizacionBecas as $beca) {
                 //dd(is_null($beca->deleted_at));
                 if ($beca->bnd_tiene_vigencia == 1 and !is_null($beca->vigencia)) {
@@ -343,13 +344,16 @@ class FichaPagosController extends Controller
                     $mesFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->month;
                     $anioFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->year;
 
+                    if($beca->cliente_id==93778){
+
+                    }
 
                     if (
                         (($beca->lectivo->inicio <= $adeudo->fecha_pago and $beca->lectivo->fin >= $adeudo->fecha_pago) or
                             (($anioInicio == $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin == $anioAdeudo and $mesFin >= $mesAdeudo)) or
                             (($anioInicio == $anioAdeudo or $mesInicio <= $mesAdeudo) and ($anioFin > $anioAdeudo)) or
                             (($anioInicio < $anioAdeudo) and ($anioFin == $anioAdeudo and $mesFin >= $mesAdeudo))) and
-                        $beca->aut_dueno == 4 and is_null($beca->deleted_at)
+                        $beca->st_beca_id == 4 and is_null($beca->deleted_at)
                     ) {
                         $beca_a = $beca->id;
                         //dd($beca);
@@ -360,11 +364,12 @@ class FichaPagosController extends Controller
             $beca_autorizada = AutorizacionBeca::find($beca_a);
             //dd($beca_autorizada);
             if (
-                optional($beca_autorizada)->monto_mensualidad > 0 and
+                !is_null($beca_autorizada) and
+                $beca_autorizada->monto_mensualidad > 0 and
                 $adeudo->cajaConcepto->bnd_mensualidad == 1 and
                 ($adeudo->bnd_eximir_descuento_beca == 0 or is_null($adeudo->bnd_eximir_descuento_beca))
             ) {
-                $calculo_monto_mensualidad = $caja_ln['subtotal'] * $beca->monto_mensualidad;
+                $calculo_monto_mensualidad = $caja_ln['subtotal'] * $beca_autorizada->monto_mensualidad;
                 $caja_ln['descuento'] = $caja_ln['descuento'] + $calculo_monto_mensualidad;
                 $caja_ln['total'] = $caja_ln['subtotal'] - $caja_ln['descuento'];
             } else {
@@ -996,7 +1001,7 @@ class FichaPagosController extends Controller
                             'method'=>$pago->formaPago->cve_multipagos,
                             'url'=>'',
                             'error'=> $resultado['error'],
-                            'error_code' => $resultado['error_code']
+                            'error_code' => $resultado['error']['error_code']
                         ));
 
                 }
