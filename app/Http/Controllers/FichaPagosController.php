@@ -28,24 +28,25 @@ use GuzzleHttp\Client;
 use App\CuentasEfectivo;
 use App\ImpresionTicket;
 use App\PeticionOpenpay;
+use App\PeticionPaycode;
 use App\AdeudoPagoOnLine;
 use App\AutorizacionBeca;
 use App\SuccessMultipago;
 use Openpay\Data\Openpay;
 use App\NivelEducativoSat;
 use App\PeticionMultipago;
+
 use GuzzleHttp\Middleware;
-
 use App\CombinacionCliente;
-use Illuminate\Support\Str;
 
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\SerieFolioSimplificado;
 use Illuminate\Http\JsonResponse;
 use Openpay\Data\OpenpayApiError;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Openpay\Data\OpenpayApiAuthError;
 use Illuminate\Support\Facades\Session;
@@ -68,12 +69,21 @@ class FichaPagosController extends Controller
         if (isset($datos['id'])) {
             $this->successOpenpay($datos['id']);
         }
-        $cliente = Cliente::select('plantel_id','id','matricula','nombre','nombre2','ape_paterno',
-        'ape_materno','mail','bnd_doc_oblig_entregados')
-        ->where('matricula', Auth::user()->name)
-        ->with('plantel')
-        ->first();
-	//dd($cliente);
+        $cliente = Cliente::select(
+            'plantel_id',
+            'id',
+            'matricula',
+            'nombre',
+            'nombre2',
+            'ape_paterno',
+            'ape_materno',
+            'mail',
+            'bnd_doc_oblig_entregados'
+        )
+            ->where('matricula', Auth::user()->name)
+            ->with('plantel')
+            ->first();
+        //dd($cliente);
         /*$pago=Pago::find(86721);
         $pago->fecha="2021-10-11";
         $pago->save();*/
@@ -92,7 +102,7 @@ class FichaPagosController extends Controller
         //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         //$this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
         $this->actualizarAdeudosPagos($cliente->id, $cliente->plantel_id);
-	//dd($cliente->matricula);
+        //dd($cliente->matricula);
         $adeudo_pago_online = AdeudoPagoOnLine::where('matricula', $cliente->matricula)
             ->orderBy('fecha_limite')
             ->whereNull('deleted_at')
@@ -176,7 +186,7 @@ class FichaPagosController extends Controller
             ->orderBy('adeudos.fecha_pago')
             ->take(5)
             ->whereNull('adeudos.deleted_at')
-	    ->whereRaw('Date_Format(adeudos.updated_at,"Y-m-d") != ? ',[Date('Y-m-d')])
+            ->whereRaw('Date_Format(adeudos.updated_at,"Y-m-d") != ? ', [Date('Y-m-d')])
             ->join('combinacion_clientes as cc', 'cc.id', '=', 'adeudos.combinacion_cliente_id')
             ->join('grados as g', 'g.id', '=', 'cc.grado_id')
             //->whereIn('g.seccion', $seccionesValidas)
@@ -193,107 +203,107 @@ class FichaPagosController extends Controller
             //$adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
             //dd($adeudo_pago_online);
 
-	    if((!is_null($adeudo_pago_online) and $adeudo_pago_online->updated_at->toDateString() <> Date('Y-m-d')) or is_null($adeudo_pago_online)){
-            if ($adeudo->pagado_bnd == 1) {
+            if ((!is_null($adeudo_pago_online) and $adeudo_pago_online->updated_at->toDateString() <> Date('Y-m-d')) or is_null($adeudo_pago_online)) {
+                if ($adeudo->pagado_bnd == 1) {
 
-                if (is_null($adeudo_pago_online)) {
-                    //dd($adeudo->caja->pago);
-                    $inputC['matricula'] = $adeudo->cliente->matricula;
-                    $inputC['adeudo_id'] = $adeudo->id;
-                    if ($adeudo->caja_id == 0) {
-                        $inputC['pago_id'] = 0;
-                        $inputC['caja_id'] = 0;
-                        $inputC['subtotal'] = 0;
-                        $inputC['descuento'] = 0;
-                        $inputC['recargo'] = 0;
-                        $inputC['total'] = 0;
+                    if (is_null($adeudo_pago_online)) {
+                        //dd($adeudo->caja->pago);
+                        $inputC['matricula'] = $adeudo->cliente->matricula;
+                        $inputC['adeudo_id'] = $adeudo->id;
+                        if ($adeudo->caja_id == 0) {
+                            $inputC['pago_id'] = 0;
+                            $inputC['caja_id'] = 0;
+                            $inputC['subtotal'] = 0;
+                            $inputC['descuento'] = 0;
+                            $inputC['recargo'] = 0;
+                            $inputC['total'] = 0;
+                        } else {
+                            $inputC['pago_id'] = $adeudo->caja->pago->id;
+                            $inputC['caja_id'] = $adeudo->caja->id;
+                            $inputC['subtotal'] = $adeudo->caja->subtotal;
+                            $inputC['descuento'] = $adeudo->caja->descuento;
+                            $inputC['recargo'] = $adeudo->caja->recargo;
+                            $inputC['total'] = $adeudo->caja->total;
+                        }
+                        $inputC['cliente_id'] = $adeudo->cliente_id;
+                        $inputC['plantel_id'] = $adeudo->cliente->plantel_id;
+                        $inputC['usu_alta_id'] = 1;
+                        $inputC['usu_mod_id'] = 1;
+
+                        AdeudoPagoOnLine::create($inputC);
                     } else {
-                        $inputC['pago_id'] = $adeudo->caja->pago->id;
-                        $inputC['caja_id'] = $adeudo->caja->id;
-                        $inputC['subtotal'] = $adeudo->caja->subtotal;
-                        $inputC['descuento'] = $adeudo->caja->descuento;
-                        $inputC['recargo'] = $adeudo->caja->recargo;
-                        $inputC['total'] = $adeudo->caja->total;
+                        $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+                        //dd($hoy->toDateString());
+                        //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
+                        //if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
+                        //$input['matricula'] = $adeudo->cliente->matricula;
+                        //$input['cliente_id'] = $adeudo->cliente->id;
+                        //$input['adeudo_id'] = $adeudo->id;
+                        //dd($adeudo);
+                        $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                        $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
+                        $datos_calculados = $this->predefinido($adeudo->id);
+                        //dd($datos_calculados);
+                        $input['subtotal'] = $datos_calculados['subtotal'];
+                        $input['descuento'] = $datos_calculados['descuento'];
+                        $input['recargo'] = $datos_calculados['recargo'];
+                        $input['total'] = $datos_calculados['total'];
+                        $input['fecha_limite'] = $datos_calculados['fecha_limite'];
+                        //$input['cliente_id'] = $adeudo->cliente_id;
+                        //$input['usu_alta_id'] = 1;
+                        //$input['usu_mod_id'] = 1;
+                        //dd($input);
+                        $adeudo_pago_online->update($input);
+                        //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
+                        //}
                     }
-                    $inputC['cliente_id'] = $adeudo->cliente_id;
-                    $inputC['plantel_id'] = $adeudo->cliente->plantel_id;
-                    $inputC['usu_alta_id'] = 1;
-                    $inputC['usu_mod_id'] = 1;
-
-                    AdeudoPagoOnLine::create($inputC);
                 } else {
-                    $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
-                    //dd($hoy->toDateString());
-                    //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
-                    //if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
-                    //$input['matricula'] = $adeudo->cliente->matricula;
-                    //$input['cliente_id'] = $adeudo->cliente->id;
-                    //$input['adeudo_id'] = $adeudo->id;
-                    //dd($adeudo);
-                    $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
-                    $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
-                    $datos_calculados = $this->predefinido($adeudo->id);
-                    //dd($datos_calculados);
-                    $input['subtotal'] = $datos_calculados['subtotal'];
-                    $input['descuento'] = $datos_calculados['descuento'];
-                    $input['recargo'] = $datos_calculados['recargo'];
-                    $input['total'] = $datos_calculados['total'];
-                    $input['fecha_limite'] = $datos_calculados['fecha_limite'];
-                    //$input['cliente_id'] = $adeudo->cliente_id;
-                    //$input['usu_alta_id'] = 1;
-                    //$input['usu_mod_id'] = 1;
-                    //dd($input);
-                    $adeudo_pago_online->update($input);
-                    //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
-                    //}
-                }
-            } else {
 
-                if (is_null($adeudo_pago_online)) {
-                    $inputC['matricula'] = $adeudo->cliente->matricula;
-                    $inputC['adeudo_id'] = $adeudo->id;
-                    $inputC['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
-                    $inputC['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
-                    $datos_calculados = $this->predefinido($adeudo->id);
-                    //dd($datos_calculados);
-                    $inputC['subtotal'] = $datos_calculados['subtotal'];
-                    $inputC['descuento'] = $datos_calculados['descuento'];
-                    $inputC['recargo'] = $datos_calculados['recargo'];
-                    $inputC['total'] = $datos_calculados['total'];
-                    $inputC['fecha_limite'] = $datos_calculados['fecha_limite'];
-                    $inputC['cliente_id'] = $adeudo->cliente_id;
-                    $inputC['plantel_id'] = $adeudo->cliente->plantel_id;
-                    $inputC['usu_alta_id'] = 1;
-                    $inputC['usu_mod_id'] = 1;
-                    AdeudoPagoOnLine::create($inputC);
-                } else {
-                    $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
-                    //dd($hoy->toDateString());
-                    //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
-                    //if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
-                    //$input['matricula'] = $adeudo->cliente->matricula;
-                    //$input['cliente_id'] = $adeudo->cliente->id;
-                    //$input['adeudo_id'] = $adeudo->id;
-                    //dd($adeudo);
-                    $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
-                    $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
-                    $datos_calculados = $this->predefinido($adeudo->id);
-                    //dd($datos_calculados);
-                    $input['subtotal'] = $datos_calculados['subtotal'];
-                    $input['descuento'] = $datos_calculados['descuento'];
-                    $input['recargo'] = $datos_calculados['recargo'];
-                    $input['total'] = $datos_calculados['total'];
-                    $input['fecha_limite'] = $datos_calculados['fecha_limite'];
-                    //$input['cliente_id'] = $adeudo->cliente_id;
-                    //$input['usu_alta_id'] = 1;
-                    //$input['usu_mod_id'] = 1;
-                    $adeudo_pago_online->update($input);
-                    //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
-                    //}
+                    if (is_null($adeudo_pago_online)) {
+                        $inputC['matricula'] = $adeudo->cliente->matricula;
+                        $inputC['adeudo_id'] = $adeudo->id;
+                        $inputC['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                        $inputC['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
+                        $datos_calculados = $this->predefinido($adeudo->id);
+                        //dd($datos_calculados);
+                        $inputC['subtotal'] = $datos_calculados['subtotal'];
+                        $inputC['descuento'] = $datos_calculados['descuento'];
+                        $inputC['recargo'] = $datos_calculados['recargo'];
+                        $inputC['total'] = $datos_calculados['total'];
+                        $inputC['fecha_limite'] = $datos_calculados['fecha_limite'];
+                        $inputC['cliente_id'] = $adeudo->cliente_id;
+                        $inputC['plantel_id'] = $adeudo->cliente->plantel_id;
+                        $inputC['usu_alta_id'] = 1;
+                        $inputC['usu_mod_id'] = 1;
+                        AdeudoPagoOnLine::create($inputC);
+                    } else {
+                        $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+                        //dd($hoy->toDateString());
+                        //dd($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString());
+                        //if ($hoy->toDateString() != $adeudo_pago_online->created_at->toDateString()) {
+                        //$input['matricula'] = $adeudo->cliente->matricula;
+                        //$input['cliente_id'] = $adeudo->cliente->id;
+                        //$input['adeudo_id'] = $adeudo->id;
+                        //dd($adeudo);
+                        $input['pago_id'] = (optional($adeudo->caja->pago)->id <> 0 ? optional($adeudo->caja->pago)->id : 0);
+                        $input['caja_id'] = (optional($adeudo->caja)->id <> 0 ? optional($adeudo->caja)->id : 0);
+                        $datos_calculados = $this->predefinido($adeudo->id);
+                        //dd($datos_calculados);
+                        $input['subtotal'] = $datos_calculados['subtotal'];
+                        $input['descuento'] = $datos_calculados['descuento'];
+                        $input['recargo'] = $datos_calculados['recargo'];
+                        $input['total'] = $datos_calculados['total'];
+                        $input['fecha_limite'] = $datos_calculados['fecha_limite'];
+                        //$input['cliente_id'] = $adeudo->cliente_id;
+                        //$input['usu_alta_id'] = 1;
+                        //$input['usu_mod_id'] = 1;
+                        $adeudo_pago_online->update($input);
+                        //$this->actualizarRegistrosRelacionados($adeudo_pago_online->id);
+                        //}
+                    }
                 }
             }
-	    }
-	//dd('un reg');
+            //dd('un reg');
         }
     }
 
@@ -344,8 +354,7 @@ class FichaPagosController extends Controller
                     $mesFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->month;
                     $anioFin = Carbon::createFromFormat('Y-m-d', $beca->lectivo->fin)->year;
 
-                    if($beca->cliente_id==93778){
-
+                    if ($beca->cliente_id == 93778) {
                     }
 
                     if (
@@ -592,38 +601,38 @@ class FichaPagosController extends Controller
         //dd($adeudo_pago_online);
         $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
 
-        $formas_pago_peticiones=array();
-        $peticionesOpenpay=null;
-        if(!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id>0){
-            $peticionesOpenpayCard=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
-            //->where('fecha_limite','>=',date('Y-m-d'))
-            ->whereIn('pmethod',array('card'));
-            $peticionesOpenpay=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
-            ->whereIn('pmethod',array('bank_account','store'))
-            //->where('rstatus','<>','cancelled')
-            ->union($peticionesOpenpayCard)
-            ->get();
-            //dd($peticionesOpenpay);
-			//dd($adeudo_pago_online);
-            if(count($peticionesOpenpay)>0){
-                $formas_pago_peticiones=PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+        $formas_pago_peticiones = array();
+        $peticionesOpenpay = null;
+        if (!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id > 0) {
+            $peticionesOpenpayCard = PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+                //->where('fecha_limite','>=',date('Y-m-d'))
+                ->whereIn('pmethod', array('card'));
+            $peticionesOpenpay = PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+                ->whereIn('pmethod', array('bank_account', 'store'))
                 //->where('rstatus','<>','cancelled')
-                ->pluck('pmethod');
+                ->union($peticionesOpenpayCard)
+                ->get();
+            //dd($peticionesOpenpay);
+            //dd($adeudo_pago_online);
+            if (count($peticionesOpenpay) > 0) {
+                $formas_pago_peticiones = PeticionOpenpay::where('pago_id', $adeudo_pago_online->pago_id)
+                    //->where('rstatus','<>','cancelled')
+                    ->pluck('pmethod');
             }
             //dd($formas_pago_peticiones);
         }
 
         $forma_pagos = $plantel->formaPagos()->whereNotNull('forma_pagos.cve_multipagos')->whereNotIn('cve_multipagos', $formas_pago_peticiones)->pluck('name', 'id');
-        $openpay_productivo=Param::where('llave','openpay_productivo')->value('valor');
-        $openpay_url="";
-        if($openpay_productivo==1){
-            $openpay_url=Param::where('llave','url_openpay_token_productivo')->value('valor');
-        }else{
-            $openpay_url=Param::where('llave','url_open_pay_token_sandbox')->value('valor');
+        $openpay_productivo = Param::where('llave', 'openpay_productivo')->value('valor');
+        $openpay_url = "";
+        if ($openpay_productivo == 1) {
+            $openpay_url = Param::where('llave', 'url_openpay_token_productivo')->value('valor');
+        } else {
+            $openpay_url = Param::where('llave', 'url_open_pay_token_sandbox')->value('valor');
         }
 
         //dd($url_recibo_generico);
-        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos','peticionesOpenpay','openpay_url','plantel','openpay_productivo'));
+        return view('fichaPagos.detalle_openpay', compact('adeudo_pago_online', 'forma_pagos', 'peticionesOpenpay', 'openpay_url', 'plantel', 'openpay_productivo'));
     }
     public function verDetalle(Request $request)
     {
@@ -637,6 +646,8 @@ class FichaPagosController extends Controller
         //dd($forma_pagos);
         return view('fichaPagos.detalle', compact('adeudo_pago_online', 'forma_pagos'));
     }
+
+
 
     public function crearCajaPagoPeticion(Request $request)
     {
@@ -830,39 +841,40 @@ class FichaPagosController extends Controller
         ], 200);
     }
 
-    public function tokenOpenpay(Request $request){
-        $datos=$request->all();
+    public function tokenOpenpay(Request $request)
+    {
+        $datos = $request->all();
         $ip = Param::where('llave', 'ip_localhost')->first();
-        $plantel=Plantel::find($datos['plantel']);
+        $plantel = Plantel::find($datos['plantel']);
         $openpay = Openpay::getInstance($plantel->oid, $plantel->oprivada, 'MX', $ip->valor);
         $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
-        $url_openpay="";
+        $url_openpay = "";
         if ($openpay_productivo->valor == 1) {
-            $url_openpay=$openpay_productivo = Param::where('llave', 'url_openpay_token_productivo')->value('valor');
+            $url_openpay = $openpay_productivo = Param::where('llave', 'url_openpay_token_productivo')->value('valor');
         } else {
-            $url_openpay=$openpay_productivo = Param::where('llave', 'url_open_pay_token_sandbox')->value('valor');
+            $url_openpay = $openpay_productivo = Param::where('llave', 'url_open_pay_token_sandbox')->value('valor');
         }
 
-        $body=json_encode([
-            'holder_name'=> $datos['holder_name'],
-            "card_number"=> $datos['card_number'],
-            "cvv2"=> $datos['cvv2'],
-            'expiration_month'=> $datos['expiration_month'],
-            'expiration_year'=> $datos['expiration_year'],
+        $body = json_encode([
+            'holder_name' => $datos['holder_name'],
+            "card_number" => $datos['card_number'],
+            "cvv2" => $datos['cvv2'],
+            'expiration_month' => $datos['expiration_month'],
+            'expiration_year' => $datos['expiration_year'],
         ]);
 
 
-        $url = $url_openpay."/v1/".$plantel->oid."/tokens";
+        $url = $url_openpay . "/v1/" . $plantel->oid . "/tokens";
 
         $curl = curl_init();
 
         $curlOptions = [
             CURLOPT_URL => $url,
-            CURLOPT_USERPWD => $plantel->oprivada.":",
+            CURLOPT_USERPWD => $plantel->oprivada . ":",
             CURLOPT_HTTPHEADER => array('Content-type: application/json'),
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
-            CURLOPT_RETURNTRANSFER=>true
+            CURLOPT_RETURNTRANSFER => true
         ];
 
         curl_setopt_array($curl, $curlOptions);
@@ -882,7 +894,7 @@ class FichaPagosController extends Controller
             ->with('pago')
             ->with('peticionMultipago')
             ->find($datos['adeudo_pago_online_id']);
-	//dd($adeudo_pago_online->toArray());
+        //dd($adeudo_pago_online->toArray());
         $plantel = Plantel::find($adeudo_pago_online->plantel_id);
 
         //Se crea registro de caja si no tiene
@@ -988,86 +1000,86 @@ class FichaPagosController extends Controller
             //->whereNotNull('rid')
             ->first();
         //dd($plantel);
-        $prefijo_matricula_instalacion=Param::where('llave','prefijo_matricula_instalacion')->first();
-        $order_id_card = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('YmdHi');
+        $prefijo_matricula_instalacion = Param::where('llave', 'prefijo_matricula_instalacion')->first();
+        $order_id_card = $prefijo_matricula_instalacion->valor . $this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id) . date('YmdHi');
         if (!is_null($existePeticion)) {
 
             $resultado = $this->pagoExistente($existePeticion, $plantel);
             //dd($resultado);
 
-            if(isset($resultado['error'])){
+            if (isset($resultado['error'])) {
                 //dd($resultado['error']['error_code']."-".$resultado['error']['description']);
                 return response()->json(array(
-                            'method'=>$pago->formaPago->cve_multipagos,
-                            'url'=>'',
-                            'error'=> $resultado['error'],
-                            'error_code' => $resultado['error']['error_code']
-                        ));
-
-                }
+                    'method' => $pago->formaPago->cve_multipagos,
+                    'url' => '',
+                    'error' => $resultado['error'],
+                    'error_code' => $resultado['error']['error_code']
+                ));
+            }
             //dd($resultado->toArray());
 
 
-            if($resultado->pmethod=="card" and
-                $resultado->rstatus<>"completed" and
-                $resultado->rstatus<>"cancelled" and
-                $resultado->rstatus<>"expired" and
-		$resultado->rstatus<>"failed" and
-                $resultado->pamount==$pago->monto){
+            if (
+                $resultado->pmethod == "card" and
+                $resultado->rstatus <> "completed" and
+                $resultado->rstatus <> "cancelled" and
+                $resultado->rstatus <> "expired" and
+                $resultado->rstatus <> "failed" and
+                $resultado->pamount == $pago->monto
+            ) {
                 return response()->json(array(
-                    'method'=>'card',
-                    'url'=>$resultado->rpayment_method_url,
-                    'error'=> null,
+                    'method' => 'card',
+                    'url' => $resultado->rpayment_method_url,
+                    'error' => null,
                     'error_code' => null
                 ));
-            }if($resultado->pmethod=="card" and ($resultado->rstatus<>"expired" || $resultado->rstatus<>"failed") ){
+            }
+            if ($resultado->pmethod == "card" and ($resultado->rstatus <> "expired" || $resultado->rstatus <> "failed")) {
                 //dd('fil');
-				$resultado->delete();
+                $resultado->delete();
                 return response()->json(array(
-                    'method'=>'card-expirado',
-                    'url'=>null,
-                    'error'=> null,
+                    'method' => 'card-expirado',
+                    'url' => null,
+                    'error' => null,
                     'error_code' => null
                 ));
-            }elseif($resultado->pmethod=="bank_account" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
+            } elseif ($resultado->pmethod == "bank_account" and $resultado->rstatus <> "completed" and $resultado->rstatus <> "cancelled") {
                 $url_open_pay = "";
-                $openpay_productivo=Param::where('llave','openpay_productivo')->first();
+                $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
                 if ($openpay_productivo->valor == 1) {
                     $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
                 } else {
                     $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
                 }
                 return response()->json(array(
-                    'method'=>'bank_account',
+                    'method' => 'bank_account',
                     'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $resultado->rid,
-                    'error'=> null,
+                    'error' => null,
                     'error_code' => null
                 ));
-            }elseif($resultado->pmethod=="store" and $resultado->rstatus<>"completed" and $resultado->rstatus<>"cancelled"){
+            } elseif ($resultado->pmethod == "store" and $resultado->rstatus <> "completed" and $resultado->rstatus <> "cancelled") {
                 $url_open_pay = "";
-                $openpay_productivo=Param::where('llave','openpay_productivo')->first();
+                $openpay_productivo = Param::where('llave', 'openpay_productivo')->first();
                 if ($openpay_productivo->valor == 1) {
                     $url_open_pay = Param::where('llave', 'url_openpay_productivo')->value('valor');
                 } else {
                     $url_open_pay = Param::where('llave', 'url_openpay_sandbox')->value('valor');
                 }
                 return response()->json(array(
-                    'method'=>'store',
+                    'method' => 'store',
                     'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $existePeticion->rpayment_method_reference,
-                    'error'=> null,
+                    'error' => null,
                     'error_code' => null
                 ));
-            }elseif($resultado->rstatus=="completed"){
+            } elseif ($resultado->rstatus == "completed") {
                 $this->successOpenpay($resultado->rid);
                 return response()->json(array(
-                    'method'=>'completado',
+                    'method' => 'completado',
                     'url' => route('fichaAdeudos.index'),
-                    'error'=> null,
+                    'error' => null,
                     'error_code' => null
                 ));
-
             }
-
         }
 
         //Se genera el registro peticion de pago
@@ -1157,85 +1169,84 @@ class FichaPagosController extends Controller
         //dd($adeudo_pago_online);
         //if ($adeudo_pago_online->peticion_multipago_id == 0 or is_null($adeudo_pago_online->peticion_multipago_id)) {
 
-            $datosOpenpay = array();
-            $datosOpenpay['pago_id'] = $pago->id;
-            $datosOpenpay['cliente_id'] = $caja->cliente_id;
-            $datosOpenpay['forma_pago_id'] =$datos['forma_pago_id'];
-            $datosOpenpay['pname'] = $datos['name'];
-            $datosOpenpay['plast_name'] = $datos['last_name'];
-            $datosOpenpay['pphone_number'] = $datos['phone_number'];
-            $datosOpenpay['pemail'] = $datos['email'];
-            $datosOpenpay['pmethod'] = $pago->formaPago->cve_multipagos;
-            $datosOpenpay['pamount'] = number_format((float) $pago->monto, 2, '.', '');
-            $datosOpenpay['porder_id'] = $prefijo_matricula_instalacion->valor.$this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id).date('Ymd');
+        $datosOpenpay = array();
+        $datosOpenpay['pago_id'] = $pago->id;
+        $datosOpenpay['cliente_id'] = $caja->cliente_id;
+        $datosOpenpay['forma_pago_id'] = $datos['forma_pago_id'];
+        $datosOpenpay['pname'] = $datos['name'];
+        $datosOpenpay['plast_name'] = $datos['last_name'];
+        $datosOpenpay['pphone_number'] = $datos['phone_number'];
+        $datosOpenpay['pemail'] = $datos['email'];
+        $datosOpenpay['pmethod'] = $pago->formaPago->cve_multipagos;
+        $datosOpenpay['pamount'] = number_format((float) $pago->monto, 2, '.', '');
+        $datosOpenpay['porder_id'] = $prefijo_matricula_instalacion->valor . $this->formatoDato('000', $caja->plantel_id) . $pago->formaPago->cve_multipagos . $this->formatoDato('0000000000', $caja->id) . date('Ymd');
 
-            $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'];
-            $datosOpenpay['p_send_mail'] = false;
-            $datosOpenpay['pconfirm'] = false;
-            $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
-            //$datosOpenpay['ppreferencia']=;
-            $due_date=null;
-            if($datosOpenpay['pmethod']=="card"){
-                $due_date=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
-                $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] ." - ". $cajaLn->cajaConcepto->name." - ".$datosOpenpay['porder_id'].date('YmdHi');
-                $datosOpenpay['use_3d_secure'] = true;
-                $datosOpenpay['token_3d_secure'] = $datos['token_3d_secure'];
-                $datosOpenpay['device'] = $datos['device'];
-                //Manipulacion de fecha
-                //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
-                //Fin manipulacion de fecha
-                $datosOpenpay['porder_id'] = $order_id_card;
-                //Eliminar registros de peticiones no pagadas con monto diferente si es que existen
-                $peticion=PeticionOpenpay::where('pago_id',$pago->id)->first();
-                if(!is_null($peticion)){
-                    $peticion->delete();
-                }
-
-            }elseif($datosOpenpay['pmethod']=="bank_account"){
-                $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 23:00:00");
-                //Manipulacion de fecha
-                //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
-                //Fin manipulacion de fecha
-
-                //dd($hoy->diffInDays($due_date));
-
-            }elseif($datosOpenpay['pmethod']=="store"){
-                $due_date=Carbon::createFromFormat('Y-m-d H:s:i',$adeudo_pago_online->fecha_limite->toDateString()." 21:00:00");
-                //Manipulacion de fecha
-                //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
-                //Fin manipulacion de fecha
-
-                //dd($hoy->diffInDays($due_date));
-            }
-
-            $hoy=Carbon::createFromFormat('Y-m-d',date('Y-m-d'));
-
-            if($hoy->diffInDays($due_date)>=30){
-                $datosOpenpay['fecha_limite'] = $hoy->addDays(29)->toDateTimeString();
-            }else{
-                $datosOpenpay['fecha_limite'] = $due_date->toDateTimeString();
-            }
-
+        $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] . " - " . $cajaLn->cajaConcepto->name . " - " . $datosOpenpay['porder_id'];
+        $datosOpenpay['p_send_mail'] = false;
+        $datosOpenpay['pconfirm'] = false;
+        $datosOpenpay['predirect_url'] = route('fichaAdeudos.index');
+        //$datosOpenpay['ppreferencia']=;
+        $due_date = null;
+        if ($datosOpenpay['pmethod'] == "card") {
+            $due_date = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+            $datosOpenpay['pdescription'] = $datosOpenpay['cliente_id'] . " - " . $cajaLn->cajaConcepto->name . " - " . $datosOpenpay['porder_id'] . date('YmdHi');
+            $datosOpenpay['use_3d_secure'] = true;
+            $datosOpenpay['token_3d_secure'] = $datos['token_3d_secure'];
+            $datosOpenpay['device'] = $datos['device'];
             //Manipulacion de fecha
-            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-18 23:00:00')->toDateTimeString();
+            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
             //Fin manipulacion de fecha
-            $datosOpenpay['usu_alta_id'] = Auth::user()->id;
-            $datosOpenpay['usu_mod_id'] = Auth::user()->id;
-
-            //dd($datosOpenpay);
-            $peticionOpenpay = PeticionOpenpay::create($datosOpenpay);
-
-            if ($peticionOpenpay->pmethod == 'card') {
-                $respuesta = $this->pagoTarjeta($peticionOpenpay, $plantel);
-                //dd($respuesta);
-                return response()->json($respuesta);
-            } elseif ($peticionOpenpay->pmethod == 'bank_account') {
-                $respuesta = $this->pagoBancoNuevo($peticionOpenpay, $plantel);
-                return response()->json($respuesta);
-            } elseif ($peticionOpenpay->pmethod == 'store') {
-                $respuesta = $this->pagoTiendas($peticionOpenpay, $plantel);
-                return response()->json($respuesta);
+            $datosOpenpay['porder_id'] = $order_id_card;
+            //Eliminar registros de peticiones no pagadas con monto diferente si es que existen
+            $peticion = PeticionOpenpay::where('pago_id', $pago->id)->first();
+            if (!is_null($peticion)) {
+                $peticion->delete();
             }
+        } elseif ($datosOpenpay['pmethod'] == "bank_account") {
+            $due_date = Carbon::createFromFormat('Y-m-d H:s:i', $adeudo_pago_online->fecha_limite->toDateString() . " 23:00:00");
+            //Manipulacion de fecha
+            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
+            //Fin manipulacion de fecha
+
+            //dd($hoy->diffInDays($due_date));
+
+        } elseif ($datosOpenpay['pmethod'] == "store") {
+            $due_date = Carbon::createFromFormat('Y-m-d H:s:i', $adeudo_pago_online->fecha_limite->toDateString() . " 21:00:00");
+            //Manipulacion de fecha
+            //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-15 23:59:59')->toDateTimeString();
+            //Fin manipulacion de fecha
+
+            //dd($hoy->diffInDays($due_date));
+        }
+
+        $hoy = Carbon::createFromFormat('Y-m-d', date('Y-m-d'));
+
+        if ($hoy->diffInDays($due_date) >= 30) {
+            $datosOpenpay['fecha_limite'] = $hoy->addDays(29)->toDateTimeString();
+        } else {
+            $datosOpenpay['fecha_limite'] = $due_date->toDateTimeString();
+        }
+
+        //Manipulacion de fecha
+        //$datosOpenpay['fecha_limite']=Carbon::createFromFormat('Y-m-d H:s:i','2024-07-18 23:00:00')->toDateTimeString();
+        //Fin manipulacion de fecha
+        $datosOpenpay['usu_alta_id'] = Auth::user()->id;
+        $datosOpenpay['usu_mod_id'] = Auth::user()->id;
+
+        //dd($datosOpenpay);
+        $peticionOpenpay = PeticionOpenpay::create($datosOpenpay);
+
+        if ($peticionOpenpay->pmethod == 'card') {
+            $respuesta = $this->pagoTarjeta($peticionOpenpay, $plantel);
+            //dd($respuesta);
+            return response()->json($respuesta);
+        } elseif ($peticionOpenpay->pmethod == 'bank_account') {
+            $respuesta = $this->pagoBancoNuevo($peticionOpenpay, $plantel);
+            return response()->json($respuesta);
+        } elseif ($peticionOpenpay->pmethod == 'store') {
+            $respuesta = $this->pagoTiendas($peticionOpenpay, $plantel);
+            return response()->json($respuesta);
+        }
         /*} else {
         }*/
     }
@@ -1269,13 +1280,13 @@ class FichaPagosController extends Controller
             //dd('antes');
             $chargeData =  array(
                 'method' => $peticionOpenpay->pmethod,
-                "source_id"=> $peticionOpenpay->token_3d_secure,
+                "source_id" => $peticionOpenpay->token_3d_secure,
                 'amount' => $peticionOpenpay->pamount,
                 'description' => $peticionOpenpay->pdescription,
                 'order_id' => $peticionOpenpay->porder_id,
                 "device_session_id" => $peticionOpenpay->device,
                 'customer' => $customer,
-                "use_3d_secure"=> true,
+                "use_3d_secure" => true,
                 //"capture"=>false
                 //'send_email' => $peticionOpenpay->psend_mail,
                 //'confirm' => $peticionOpenpay->pconfirm,
@@ -1308,7 +1319,7 @@ class FichaPagosController extends Controller
             return array(
                 "method" => $peticionOpenpay->pmethod,
                 'url' => $peticionOpenpay->rpayment_method_url,
-                'error'=> null,
+                'error' => null,
                 'error_code' => null
             );
         } catch (OpenpayApiTransactionError $e) {
@@ -1320,7 +1331,7 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-                ];
+            ];
         } catch (OpenpayApiRequestError $e) {
             return [
                 'error' => [
@@ -1412,7 +1423,7 @@ class FichaPagosController extends Controller
                 'description' => $peticionOpenpay->pdescription,
                 'order_id' => $peticionOpenpay->porder_id,
                 'customer' => $customer,
-                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i',$peticionOpenpay->fecha_limite)->toIso8601String()
+                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i', $peticionOpenpay->fecha_limite)->toIso8601String()
                 //'send_email' => $peticionOpenpay->psend_mail,
                 //'confirm' => $peticionOpenpay->pconfirm,
                 //'redirect_url' => $peticionOpenpay->predirect_url
@@ -1447,7 +1458,7 @@ class FichaPagosController extends Controller
             return array(
                 "method" => $peticionOpenpay->pmethod,
                 'url' => $url_open_pay . "/spei-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rid,
-                'error'=> null,
+                'error' => null,
                 'error_code' => null
             );
         } catch (OpenpayApiTransactionError $e) {
@@ -1459,7 +1470,7 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-                ];
+            ];
         } catch (OpenpayApiRequestError $e) {
             return [
                 'error' => [
@@ -1552,7 +1563,7 @@ class FichaPagosController extends Controller
 
         $chargeList = $openpay->charges->getList($findDataRequest);
         //dd($chargeList);
-        if($peticion->pmethod=="bank_account"){
+        if ($peticion->pmethod == "bank_account") {
             $peticion->rid = $chargeList[0]->id;
             $peticion->rauthorization = $chargeList[0]->authorization;
             $peticion->rmethod = $chargeList[0]->method;
@@ -1573,9 +1584,9 @@ class FichaPagosController extends Controller
             $peticion->rpayment_method_clabe = $chargeList[0]->payment_method->clabe;
             $peticion->rpayment_method_name = $chargeList[0]->payment_method->name;
             $peticion->rorder_id = $chargeList[0]->order_id;
-        }elseif($peticion->pmethod=="card"){
-			//dd($chargeList[0]);
-			//dd($chargeList[0]->payment_method);
+        } elseif ($peticion->pmethod == "card") {
+            //dd($chargeList[0]);
+            //dd($chargeList[0]->payment_method);
             $peticion->rid = $chargeList[0]->id;
             $peticion->rauthorization = $chargeList[0]->authorization;
             $peticion->rmethod = $chargeList[0]->method;
@@ -1592,8 +1603,7 @@ class FichaPagosController extends Controller
             $peticion->rpayment_method_type = optional($chargeList[0]->payment_method)->type;
             $peticion->rpayment_method_url = optional($chargeList[0]->payment_method)->url;
             $peticion->rorder_id = $chargeList[0]->order_id;
-
-        }elseif($peticion->pmethod=="store"){
+        } elseif ($peticion->pmethod == "store") {
             $peticion->rid = $chargeList[0]->id;
             $peticion->rauthorization = $chargeList[0]->authorization;
             $peticion->rmethod = $chargeList[0]->method;
@@ -1619,8 +1629,8 @@ class FichaPagosController extends Controller
 
     public function pagoTiendas($peticionOpenpay, $plantel)
     {
-           //dd('fil');
-           try {
+        //dd('fil');
+        try {
             // create instance OpenPay
             //dd($peticionOpenpay);
             $ip = Param::where('llave', 'ip_localhost')->first();
@@ -1658,7 +1668,7 @@ class FichaPagosController extends Controller
                 'description' => $peticionOpenpay->pdescription,
                 'order_id' => $peticionOpenpay->porder_id,
                 'customer' => $customer,
-                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i',$peticionOpenpay->fecha_limite)->toIso8601String()
+                'due_date' => Carbon::createFromFormat('Y-m-d H:s:i', $peticionOpenpay->fecha_limite)->toIso8601String()
                 //'send_email' => $peticionOpenpay->psend_mail,
                 //'confirm' => $peticionOpenpay->pconfirm,
                 //'redirect_url' => $peticionOpenpay->predirect_url
@@ -1697,7 +1707,7 @@ class FichaPagosController extends Controller
             return array(
                 "method" => $peticionOpenpay->pmethod,
                 'url' => $url_open_pay . "/paynet-pdf/" . $plantel->oid . "/" . $peticionOpenpay->rpayment_method_reference,
-                'error'=> null,
+                'error' => null,
                 'error_code' => null
             );
         } catch (OpenpayApiTransactionError $e) {
@@ -1709,7 +1719,7 @@ class FichaPagosController extends Controller
                     'http_code' => $e->getHttpCode(),
                     'request_id' => $e->getRequestId()
                 ]
-                ];
+            ];
         } catch (OpenpayApiRequestError $e) {
             return [
                 'error' => [
@@ -1917,12 +1927,12 @@ class FichaPagosController extends Controller
         try {
             //$success = SuccessMultipago::create($crearRegistro);
             $peticion = PeticionOpenpay::where('rid', $id)->first();
-            $plantel =Cliente::find($peticion->cliente_id)->plantel;
+            $plantel = Cliente::find($peticion->cliente_id)->plantel;
 
-            $peticion=$this->buscarOpenpay($peticion, $plantel);
+            $peticion = $this->buscarOpenpay($peticion, $plantel);
             //dd($peticion);
 
-            if (!is_null($peticion) and $peticion->rstatus=="completed") {
+            if (!is_null($peticion) and $peticion->rstatus == "completed") {
                 //$peticion->bnd_pagado = 1;
                 //$peticion->notificacion_pagado = date('Y-m-d H:i:s');
                 //$peticion->save();
@@ -2820,15 +2830,91 @@ class FichaPagosController extends Controller
 
         $mobile_ua = strtolower(substr($_SERVER['HTTP_USER_AGENT'], 0, 4));
         $mobile_agents = array(
-            'w3c ', 'acs-', 'alav', 'alca', 'amoi', 'audi', 'avan', 'benq', 'bird', 'blac',
-            'blaz', 'brew', 'cell', 'cldc', 'cmd-', 'dang', 'doco', 'eric', 'hipt', 'inno',
-            'ipaq', 'java', 'jigs', 'kddi', 'keji', 'leno', 'lg-c', 'lg-d', 'lg-g', 'lge-',
-            'maui', 'maxo', 'midp', 'mits', 'mmef', 'mobi', 'mot-', 'moto', 'mwbp', 'nec-',
-            'newt', 'noki', 'palm', 'pana', 'pant', 'phil', 'play', 'port', 'prox',
-            'qwap', 'sage', 'sams', 'sany', 'sch-', 'sec-', 'send', 'seri', 'sgh-', 'shar',
-            'sie-', 'siem', 'smal', 'smar', 'sony', 'sph-', 'symb', 't-mo', 'teli', 'tim-',
-            'tosh', 'tsm-', 'upg1', 'upsi', 'vk-v', 'voda', 'wap-', 'wapa', 'wapi', 'wapp',
-            'wapr', 'webc', 'winw', 'winw', 'xda ', 'xda-'
+            'w3c ',
+            'acs-',
+            'alav',
+            'alca',
+            'amoi',
+            'audi',
+            'avan',
+            'benq',
+            'bird',
+            'blac',
+            'blaz',
+            'brew',
+            'cell',
+            'cldc',
+            'cmd-',
+            'dang',
+            'doco',
+            'eric',
+            'hipt',
+            'inno',
+            'ipaq',
+            'java',
+            'jigs',
+            'kddi',
+            'keji',
+            'leno',
+            'lg-c',
+            'lg-d',
+            'lg-g',
+            'lge-',
+            'maui',
+            'maxo',
+            'midp',
+            'mits',
+            'mmef',
+            'mobi',
+            'mot-',
+            'moto',
+            'mwbp',
+            'nec-',
+            'newt',
+            'noki',
+            'palm',
+            'pana',
+            'pant',
+            'phil',
+            'play',
+            'port',
+            'prox',
+            'qwap',
+            'sage',
+            'sams',
+            'sany',
+            'sch-',
+            'sec-',
+            'send',
+            'seri',
+            'sgh-',
+            'shar',
+            'sie-',
+            'siem',
+            'smal',
+            'smar',
+            'sony',
+            'sph-',
+            'symb',
+            't-mo',
+            'teli',
+            'tim-',
+            'tosh',
+            'tsm-',
+            'upg1',
+            'upsi',
+            'vk-v',
+            'voda',
+            'wap-',
+            'wapa',
+            'wapi',
+            'wapp',
+            'wapr',
+            'webc',
+            'winw',
+            'winw',
+            'xda ',
+            'xda-'
         );
 
         if (in_array($mobile_ua, $mobile_agents)) {
@@ -3243,7 +3329,7 @@ class FichaPagosController extends Controller
 
             $receptor = array(
                 'Rfc' => strtoupper($objetosArray['cfdi']['Receptor']['Rfc']),
-                'Nombre' => strtoupper($objetosArray['cfdi']['Receptor']['Nombre']),
+                'Nombre' => mb_strtoupper($objetosArray['cfdi']['Receptor']['Nombre'], 'UTF-8'), //strtoupper($objetosArray['cfdi']['Receptor']['Nombre']),
                 'DomicilioFiscalReceptor' => strtoupper($objetosArray['cfdi']['Receptor']['DomicilioFiscalReceptor']), //Por definir
                 'UsoCFDI' => $objetosArray['cfdi']['Receptor']['UsoCFDI'], //Por definir
                 'RegimenFiscalReceptor' => $objetosArray['cfdi']['Receptor']['RegimenFiscalReceptor'], //Por definir
@@ -3743,7 +3829,521 @@ class FichaPagosController extends Controller
         return $dentro3Meses;
     }
 
-    public function terminos(){
+    public function terminos()
+    {
         return view('fichaPagos.terminos');
+    }
+
+
+    public function verDetallePaycode(Request $request)
+    {
+        $datos = $request->all();
+
+        //dd($navegador."-".$dispositivo);
+
+        $adeudo_pago_online = AdeudoPagoOnLine::find($datos['adeudo_pago_online_id']);
+        //dd($adeudo_pago_online);
+        $plantel = Plantel::find($adeudo_pago_online->adeudo->cliente->plantel_id);
+
+
+        $formas_pago_peticiones = array();
+        $peticionesPaycode = null;
+        if (!is_null($adeudo_pago_online->pago_id) and $adeudo_pago_online->pago_id > 0) {
+            $peticionesPaycode = PeticionPaycode::where('pago_id', $adeudo_pago_online->pago_id)
+                ->whereNull('bnd_conciliado')
+                ->whereNull('rreference_number')
+                ->get();
+
+            //$this->successPaycode($peticionesPaycode);
+        }
+        //dd($peticionesPaycode);
+        $forma_pagos = $plantel
+            ->formaPagos()
+            ->where('forma_pagos.cve_multipagos', 'paycode')
+            //->whereNotIn('cve_multipagos', $formas_pago_peticiones)
+            ->pluck('name', 'id');
+
+        //dd($url_recibo_generico);
+        return view(
+            'fichaPagos.detalle_paycode',
+            compact(
+                'adeudo_pago_online',
+                'forma_pagos',
+                'plantel',
+                'peticionesPaycode'
+            )
+        );
+    }
+
+    public function crearCajaPagoPeticionPaycode(Request $request)
+    {
+        $datos = $request->all();
+
+        $adeudo_pago_online = AdeudoPagoOnLine::with('cliente')
+            ->with('caja')
+            ->with('pago')
+            ->find($datos['adeudo_pago_online_id']);
+
+        //$plantel = Plantel::find($adeudo_pago_online->plantel_id);
+
+        //dd($datos);
+
+        $plantel = Plantel::find($datos['plantel']);
+        //dd($token);
+
+        //Se crea registro de caja si no tiene
+        if ($adeudo_pago_online->caja_id == 0 or is_null($adeudo_pago_online->caja_id)) {
+            $inputCaja['cliente_id'] = $adeudo_pago_online->cliente->id;
+            $inputCaja['plantel_id'] = $adeudo_pago_online->cliente->plantel->id;
+            $inputCaja['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCaja['descuento'] = $adeudo_pago_online->descuento;
+            $inputCaja['recargo'] = $adeudo_pago_online->recargo;
+            $inputCaja['total'] = $adeudo_pago_online->total;
+            $inputCaja['forma_pago_id'] = $datos['forma_pago_id'];
+            $inputCaja['fecha'] = date('Y-m-d');
+            $inputCaja['st_caja_id'] = 0;
+            $inputCaja['usu_alta_id'] = 1;
+            $inputCaja['usu_mod_id'] = 1;
+            $consecutivo = ++$plantel->consecutivo;
+            $plantel->save();
+            $inputCaja['consecutivo'] = $consecutivo;
+            $caja = Caja::create($inputCaja);
+            $adeudo_pago_online->caja_id = $caja->id;
+            $adeudo_pago_online->save();
+            $adeudo = $adeudo_pago_online->adeudo;
+            $adeudo->caja_id = $caja->id;
+            $adeudo->save();
+        } else {
+            $caja = $adeudo_pago_online->caja;
+            //Caja::find($adeudo_pago_online->caja_id);
+            $inputCaja['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCaja['descuento'] = $adeudo_pago_online->descuento;
+            $inputCaja['recargo'] = $adeudo_pago_online->recargo;
+            $inputCaja['total'] = $adeudo_pago_online->total;
+            $inputCaja['forma_pago_id'] = $datos['forma_pago_id'];
+            $inputCaja['fecha'] = date('Y-m-d');
+            $caja->update($inputCaja);
+        }
+
+
+        //Se crea linea de caja si no la tiene
+        if ($adeudo_pago_online->caja_ln_id == 0 or is_null($adeudo_pago_online->caja_ln_id)) {
+            $inputCajaLn['caja_id'] = $caja->id;
+            $inputCajaLn['caja_concepto_id'] = $adeudo_pago_online->adeudo->caja_concepto_id;
+            $inputCajaLn['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCajaLn['descuento'] = $adeudo_pago_online->descuento;
+            $inputCajaLn['recargo'] = $adeudo_pago_online->recargo;
+            $inputCajaLn['total'] = $adeudo_pago_online->total;
+            $inputCajaLn['adeudo_id'] = $adeudo_pago_online->adeudo_id;
+            $inputCajaLn['usu_alta_id'] = 1;
+            $inputCajaLn['usu_mod_id'] = 1;
+            $cajaLn = CajaLn::create($inputCajaLn);
+            $adeudo_pago_online->caja_ln_id = $cajaLn->id;
+            $adeudo_pago_online->save();
+        } else {
+            $cajaLn = $adeudo_pago_online->cajaLn;
+            //CajaLn::find($adeudo_pago_online->caja_ln_id);
+            $inputCajaLn['subtotal'] = $adeudo_pago_online->subtotal;
+            $inputCajaLn['descuento'] = $adeudo_pago_online->descuento;
+            $inputCajaLn['recargo'] = $adeudo_pago_online->recargo;
+            $inputCajaLn['total'] = $adeudo_pago_online->total;
+            $cajaLn->update($inputCajaLn);
+        }
+
+
+        //Se crea registro de pago si no lo tiene
+        if ($adeudo_pago_online->pago_id == 0 or is_null($adeudo_pago_online->pago_id)) {
+            $inputPago['caja_id'] = $caja->id;
+            $inputPago['monto'] = $caja->total;
+            $inputPago['fecha'] = $caja->fecha;
+            $inputPago['forma_pago_id'] = $caja->forma_pago_id;
+            $inputPago['bnd_pagado'] = 0;
+            $inputPago['bnd_referenciado'] = 1;
+            $inputPago['usu_alta_id'] = 1;
+            $inputPago['usu_mod_id'] = 1;
+
+            $consecutivo = ++$plantel->consecutivo_pago;
+            $plantel->save();
+            $inputPago['consecutivo'] = $consecutivo;
+
+            $inputPago['cuenta_efectivo_id'] = $this->getCuentasPlantelFormaPago($caja->forma_pago_id, $caja->plantel_id);
+
+            if ($inputPago['forma_pago_id'] == 1) {
+                $cuenta_efectivo = CuentasEfectivo::find($inputPago['cuenta_efectivo_id']);
+                $cuenta_efectivo->csc_efectivo = $cuenta_efectivo->csc_efectivo + 1;
+                $cuenta_efectivo->save();
+                $input['referencia'] = $cuenta_efectivo->csc_efectivo;
+            }
+            $pago = Pago::create($inputPago);
+
+            $adeudo_pago_online->pago_id = $pago->id;
+            $adeudo_pago_online->save();
+        } else {
+            $pago = $adeudo_pago_online->pago;
+            //Pago::find($adeudo_pago_online->pago_id);
+            $inputPago['monto'] = $caja->total;
+            $inputPago['fecha'] = $caja->fecha;
+            $inputPago['forma_pago_id'] = $caja->forma_pago_id;
+            $inputPago['cuenta_efectivo_id'] = $this->getCuentasPlantelFormaPago($caja->forma_pago_id, $caja->plantel_id);
+            $pago->update($inputPago);
+        }
+
+        //Se genera el registro peticion de pago
+        $inputPeticionPaycode['pago_id'] = $pago->id;
+        $inputPeticionPaycode['cliente_id'] = $caja->cliente_id;
+        $inputPeticionPaycode['forma_pago_id'] = $datos['forma_pago_id'];
+        $inputPeticionPaycode['pnum_cel'] = $datos['num_cel'];
+        $inputPeticionPaycode['pfisrt_name'] = $datos['first_name'];
+        $inputPeticionPaycode['ppaternal_surname'] = $datos['paternal_surname'];
+        $inputPeticionPaycode['pmaternal_surname'] = $datos['maternal_surname'];
+        $inputPeticionPaycode['pconcept'] = $adeudo_pago_online->id . "-" . $adeudo_pago_online->cliente->id . "-" . $adeudo_pago_online->adeudo->cajaConcepto->name . "-" . date('YmdHi');
+        $inputPeticionPaycode['pamount'] = $adeudo_pago_online->total;
+        $inputPeticionPaycode['usu_alta_id'] = Auth::user()->id;
+        $inputPeticionPaycode['usu_mod_id'] = Auth::user()->id;
+        $inputPeticionPaycode['card_4_digits'] = substr($datos['card_number'], -4);
+        //dd($inputPeticionPaycode);
+
+        $peticionPaycode = PeticionPaycode::create($inputPeticionPaycode);
+
+        //Se hace la peticion al proveedor
+        $token = $this->loginPaycode($datos['plantel']);
+        try {
+            $bnd_paycode_pruebas = Param::where('llave', 'bnd_paycode_pruebas')->first();
+            $bnd_paycode_produccion = Param::where('llave', 'bnd_paycode_produccion')->first();
+            $url_paycode = "";
+            if ($bnd_paycode_pruebas->valor == 1 and $bnd_paycode_produccion->valor == 0) {
+                $url_paycode = Param::where('llave', 'paycode_url_pruebas')->first();
+            } elseif ($bnd_paycode_pruebas->valor == 0 and $bnd_paycode_produccion->valor == 1) {
+                $url_paycode = Param::where('llave', 'paycodecode_url_produccion')->first();
+            }
+            $client = new Client(['base_uri' => $url_paycode->valor]);
+            $datos_requeridos = [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept'        => 'application/json',
+                ],
+                'json' => [
+                    "amount" => $adeudo_pago_online->total, // CAMPO STRING OBLIGATORIO - Coloque el importe a 2 decimales que se va a cobrar.
+                    "save_card" => false, // CAMPO BOOLEANO OPCIONAL
+                    "card" => [ // OBJETO OBLIGATORIO
+                        "card_number" => $datos['card_number'], // CAMPO STRING OBLIGATORIO - Coloque el número de tarjeta a 15 o 16 dígitos. 15 para American Express y 16 para Visa MasterCard.
+                        "sec_code" => $datos['cvv2'], // CAMPO STRING OBLIGATORIO - Coloque el CVV de la tarjeta a 3 o 4 dígitos. 4 para American Express y 3 para Visa MasterCard.
+                        "exp_month" => $datos['expiration_month'], // CAMPO STRING OBLIGATORIO - Coloque el mes de expiración de la tarjeta.
+                        "exp_year" => $datos['expiration_year'], // CAMPO STRING OBLIGATORIO - Coloque el año de expiración de la tarjeta.
+                        "cardholder_name" => $datos['holder_name'], // CAMPO STRING OBLIGATORIO - Coloque el nombre del titular de la tarjeta.
+                        "3ds" => false // CAMPO BOOLEANO OPCIONAL
+                    ],
+                    "client" => [ // OBJETO OBLIGATORIO
+                        "num_cel" => $datos['num_cel'], // CAMPO STRING OBLIGATORIO - Coloque el número de teléfono celular a 10 dígitos.
+                        "first_name" => $datos['first_name'], // CAMPO STRING OBLIGATORIO - Coloque el nombre del cliente.
+                        "paternal_surname" => $datos['paternal_surname'], // CAMPO STRING OBLIGATORIO - Coloque el apellido paterno del cliente.
+                        "maternal_surname" => $datos['maternal_surname'], // CAMPO STRING OPCIONAL - Coloque el apellido materno del cliente.
+                        "concept" => $adeudo_pago_online->id . "-" . $adeudo_pago_online->cliente->id . "-" . $adeudo_pago_online->adeudo->cajaConcepto->name . "-" . date('YmdHi') // CAMPO STRING OBLIGATORIO - Coloque el concepto del cobro.
+                    ],
+                    "meta_data" => [
+                        "adeudo_pago_online_id" => $adeudo_pago_online->id,
+                        "client_id" => $adeudo_pago_online->cliente->id,
+                        "concepto" => $adeudo_pago_online->adeudo->cajaConcepto->name
+                    ]
+                ]
+            ];
+            //dd($datos_requeridos);
+            $response = $client->request('POST', '/Api/v2/cobros/pago_tarjeta_ecomerce', $datos_requeridos);
+
+            $body = $response->getBody();
+            $data = json_decode($body, true);
+
+            //dd($data);
+            if (!$data['success']) {
+                Log::info([
+                    "amount" => $adeudo_pago_online->total, // CAMPO STRING OBLIGATORIO - Coloque el importe a 2 decimales que se va a cobrar.
+                    "save_card" => false, // CAMPO BOOLEANO OPCIONAL
+                    "client" => [ // OBJETO OBLIGATORIO
+                        "num_cel" => $datos['num_cel'], // CAMPO STRING OBLIGATORIO - Coloque el número de teléfono celular a 10 dígitos.
+                        "first_name" => $datos['first_name'], // CAMPO STRING OBLIGATORIO - Coloque el nombre del cliente.
+                        "paternal_surname" => $datos['paternal_surname'], // CAMPO STRING OBLIGATORIO - Coloque el apellido paterno del cliente.
+                        "maternal_surname" => $datos['maternal_surname'], // CAMPO STRING OPCIONAL - Coloque el apellido materno del cliente.
+                        "concept" => $adeudo_pago_online->id . "-" . $adeudo_pago_online->cliente->id . "-" . $adeudo_pago_online->adeudo->cajaConcepto->name . "-" . date('YmdHi') // CAMPO STRING OBLIGATORIO - Coloque el concepto del cobro.
+                    ]
+                ]);
+
+                $peticionPaycode->rsuccess = 0;
+                $peticionPaycode->rdisplay_message = $data['error'];
+                $peticionPaycode->save();
+
+                return [
+                    'success' => 0,
+                    'error' => [
+                        'error_code' => 0,
+                        'description' => $data['error']
+                    ]
+                ];
+            } elseif ($data['success'] and $data['result_code'] == "00") {
+                //dd('entrada exitosa');
+                $peticionPaycode->rsuccess = 1;
+                $peticionPaycode->rdisplay_message = $data['display_message'];
+                $peticionPaycode->rreference_number = $data["reference_number"];
+                $peticionPaycode->rtrack_code = $data["track_code"];
+                $peticionPaycode->card_type = $data["card_type"];
+                $peticionPaycode->rmetadata = $data["metadata"];
+                $peticionPaycode->result_code = $data["result_code"];
+                $peticionPaycode->save();
+
+                $this->successPaycode($peticionPaycode, $adeudo_pago_online->id);
+
+                return array('url' => route('fichaAdeudos.index'));
+            } else {
+                //dd('success con declinacion');
+                $peticionPaycode->rsuccess = $data['success'];
+                $peticionPaycode->rdisplay_message = $data['display_message'];
+                $peticionPaycode->rreference_number = $data["reference_number"];
+                $peticionPaycode->rtrack_code = $data["track_code"];
+                $peticionPaycode->card_type = $data["card_type"];
+                $peticionPaycode->rmetadata = $data["metadata"];
+                $peticionPaycode->result_code = $data["result_code"];
+                $peticionPaycode->save();
+
+                return [
+                    'success' => 0,
+                    'error' => [
+                        'error_code' => $data['result_code'],
+                        'description' => $data["display_message"]
+                    ]
+                ];
+            }
+        } catch (Exception $e) {
+            return [
+                'success' => 0,
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ];
+        }
+    }
+
+    public function loginPaycode($plantel_id)
+    {
+        $plantel = Plantel::find($plantel_id);
+        $bnd_paycode_pruebas = Param::where('llave', 'bnd_paycode_pruebas')->first();
+        $bnd_paycode_produccion = Param::where('llave', 'bnd_paycode_produccion')->first();
+        $url_paycode = "";
+        if ($bnd_paycode_pruebas->valor == 1 and $bnd_paycode_produccion->valor == 0) {
+            $url_paycode = Param::where('llave', 'paycode_url_pruebas')->first();
+        } elseif ($bnd_paycode_pruebas->valor == 0 and $bnd_paycode_produccion->valor == 1) {
+            $url_paycode = Param::where('llave', 'paycodecode_url_produccion')->first();
+        }
+
+        /*
+        $url = $url_paycode->valor . 'Api/v2/auth/login';
+
+        $curlOptions = [
+            CURLOPT_URL => $url,
+            CURLOPT_HTTPHEADER => array('Authorization: ' . $plantel->api_key_paycode),
+        ];
+
+
+            $curl = curl_init();
+
+            curl_setopt_array($curl, $curlOptions);
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+
+            return json_decode($response, true);
+            */
+        try {
+            //dd($plantel);
+            $client = new Client(['base_uri' => $url_paycode->valor]);
+            $response = $client->request('GET', 'Api/v2/auth/login', [
+                'headers' => [
+                    'Authorization' => $plantel->api_key_paycode
+                ]
+            ]);
+            $body = $response->getBody();
+            $data = json_decode($body, true);
+            //dd($data);
+            return $data['access_token'];
+        } catch (Exception $e) {
+            //dd($e);
+            return [
+                'success' => 0,
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ];
+        }
+    }
+
+    public function successPaycode($peticion, $adeudo_pago_online)
+    {
+        try {
+            //$success = SuccessMultipago::create($crearRegistro);
+            //$peticion = PeticionPaycode::where('rid', $id)->first();
+            //dd($peticionBuscada);
+            $plantel = Cliente::find($peticion->cliente_id)->plantel;
+            //dd($plantel->id);
+            //$peticion = $this->buscarPaycode($peticionBuscada, $plantel->id, $adeudo_pago_online);
+            //dd($peticion);
+
+            if (!is_null($peticion->result_code) and $peticion->result_code == "00") {
+                $pago = Pago::find($peticion->pago_id);
+                $caja = Caja::find($pago->caja_id);
+                $cajaLn = CajaLn::where('caja_id', $caja->id)->first();
+                $adeudo = Adeudo::where('id', $cajaLn->adeudo_id)->first();
+
+                $pago->bnd_pagado = 1;
+                $pago->save();
+                $caja = $pago->caja;
+                $caja->st_caja_id = 1;
+                $caja->save();
+                $adeudo->pagado_bnd = 1;
+                $adeudo->save();
+
+                //Generar consecutivo pago simplificado
+                $plantel = Plantel::find($caja->plantel_id);
+                $pago_final = Pago::where('caja_id', '=', $caja->id)->orderBy('id', 'desc')->first();
+                $pagos = Pago::where('caja_id', '=', $caja->id)->orderBy('id', 'desc')->get();
+
+                $mes = Carbon::createFromFormat('Y-m-d', $pago_final->fecha)->month;
+                $anio = Carbon::createFromFormat('Y-m-d', $pago_final->fecha)->year;
+
+                if ($caja->cajaLn->cajaConcepto->bnd_mensualidad == 1 and is_null($pago_final->csc_simplificado)) {
+                    $serie_folio_simplificado = SerieFolioSimplificado::where('cuenta_p_id', $plantel->cuenta_p_id)
+                        ->where('anio', $anio)
+                        ->where('mese_id', 13)
+                        ->where('bnd_activo', 1)
+                        ->where('bnd_fiscal', 1)
+                        ->first();
+                    $serie_folio_simplificado->folio_actual = $serie_folio_simplificado->folio_actual + 1;
+                    $folio_actual = $serie_folio_simplificado->folio_actual;
+                    $serie = $serie_folio_simplificado->serie;
+                    $serie_folio_simplificado->save();
+
+                    $relleno = "0000";
+                    $consecutivo = substr($relleno, 0, 4 - strlen($folio_actual)) . $folio_actual;
+                    foreach ($pagos as $pago) {
+                        $pago->csc_simplificado = $serie . "-" . $consecutivo;
+                        $pago->save();
+                    }
+                } elseif ($caja->cajaLn->cajaConcepto->bnd_mensualidad == 0 and is_null($pago_final->csc_simplificado)) {
+                    $serie_folio_simplificado = SerieFolioSimplificado::where('cuenta_p_id', $plantel->cuenta_p_id)
+                        ->where('anio', $anio)
+                        ->where('mese_id', $mes)
+                        ->where('bnd_activo', 1)
+                        ->where('bnd_fiscal', 0)
+                        ->first();
+                    $serie_folio_simplificado->folio_actual = $serie_folio_simplificado->folio_actual + 1;
+                    $serie_folio_simplificado->save();
+                    $folio_actual = $serie_folio_simplificado->folio_actual;
+                    $mes_prefijo = $serie_folio_simplificado->mes1->abreviatura;
+                    $anio_prefijo = $anio - 2000;
+                    $serie = $serie_folio_simplificado->serie;
+
+
+                    $relleno = "0000";
+                    $consecutivo = substr($relleno, 0, 4 - strlen($folio_actual)) . $folio_actual;
+                    foreach ($pagos as $pago) {
+                        $pago->csc_simplificado = $serie . "-" . $mes_prefijo . $anio_prefijo . "-" . $consecutivo;
+                        $pago->save();
+                    }
+                }
+                //Fin crear consecutivo simplificado
+
+            }
+        } catch (Exception $e) {
+            //dd($e);
+            Log::info($e->getMessage());
+            return [
+                'success' => 0,
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ];
+        }
+    }
+
+    public function buscarPaycode($peticion, $plantel_id, $adeudo_pago_online)
+    {
+        //dd($plantel_id);
+        $plantel = Plantel::find($plantel_id);
+        $token = $this->loginPaycode($plantel_id);
+        //dd($plantel);
+        $bnd_paycode_pruebas = Param::where('llave', 'bnd_paycode_pruebas')->first();
+        $bnd_paycode_produccion = Param::where('llave', 'bnd_paycode_produccion')->first();
+        $url_paycode = "";
+        if ($bnd_paycode_pruebas->valor == 1 and $bnd_paycode_produccion->valor == 0) {
+            $url_paycode = Param::where('llave', 'paycode_url_pruebas')->first();
+        } elseif ($bnd_paycode_pruebas->valor == 0 and $bnd_paycode_produccion->valor == 1) {
+            $url_paycode = Param::where('llave', 'paycodecode_url_produccion')->first();
+        }
+
+        $parametros = "";
+        if (!is_null($peticion->rreference_number) and $peticion->rreference_number <> "") {
+            $parametros = "?id_transaction=" . $peticion->rreference_number;
+        } else {
+            $parametros = "?card=" . $peticion->card_4_digits;
+        }
+        //dd($token);
+        try {
+            $client = new Client(['base_uri' => $url_paycode->valor]);
+            $response = $client->request('GET', '/Api/v2/transacciones/obtener_transacciones' . $parametros, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept'        => 'application/json',
+                ]
+            ]);
+            //dd($response);
+            $body = $response->getBody();
+            $data = json_decode($body, true);
+
+            //dd($data['data']['data']);
+            if (count($data['data']['data']) == 1) {
+                if (
+                    $peticion->rreference_number == $data['data']['data'][0]['identificador'] and
+                    $data['data']['data'][0]['codigo_resultado'] == "00"
+                ) {
+                    $peticion->bnd_conciliado = 1;
+                    $peticion->save();
+                    return $peticion;
+                }
+                return new PeticionPaycode();
+            }
+
+            return [
+                'success' => 0,
+                'error' => [
+                    'error_code' => "",
+                    'description' => "No se recibio la respuesta del proveedor, sugerimos revisar su cuenta para evitar repetir recargos y/o aclarar el movimiento en control escolar."
+                ]
+            ];
+
+            //return redirect()->route('fichaAdeudos.crearCajaPagoPeticionPaycode', $adeudo_pago_online);
+            /*elseif (count($data['data']['data']) > 1) {
+                //dd($data['data']['data']);
+                foreach ($data['data']['data'] as $datos) {
+                    //dd($datos);
+                    $fecha_peticion = Carbon::createFromFormat('Y-m-d H:i:s', $datos['fecha_transaccion']);
+                    //dd($peticion->created_at->format('Y-m-d'));
+                    //$existe_peticion=PeticionPaycode::where('rreference_number', $data[''])->first();
+                    if ($fecha_peticion->toDateString() == $peticion->created_at->format('Y-m-d')) {
+                        dd('if');
+                    }
+                }
+                return new PeticionPaycode();
+            } else {
+                return new PeticionPaycode();
+            }*/
+        } catch (Exception $e) {
+            return [
+                'success' => 0,
+                'error' => [
+                    'error_code' => $e->getCode(),
+                    'description' => $e->getMessage()
+                ]
+            ];
+        }
     }
 }

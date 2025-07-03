@@ -93,11 +93,14 @@
 
                             $open_activo=$cliente->plantel->bnd_openpay_activo;
                             $multipagos_activo=$cliente->plantel->bnd_multipagos_activo;
+                            $paycode_activo=$cliente->plantel->bnd_paycode;
+                            //dd($opencode_activo);
 
                             $adeudos=\App\Adeudo::where('combinacion_cliente_id',$combinacion->id)
                             ->whereNull('deleted_at')
                             ->with('cajaConcepto')
                             ->with('pagoOnLine')
+                            ->with('pagoOnLine.peticionMultipago')
                             //->orderBy('pagado_bnd', 'desc')
                             ->orderBy('fecha_pago')
                             ->get();
@@ -215,6 +218,10 @@
                                                 @if($open_activo==1)
                                                 <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @endif
+                                                {{ $open_activo }}
+                                                @if($paycode_activo==1)
+                                                <a href="{{ route('fichaAdeudos.verDetallePaycode', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea PC.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
                                                 <!--@@endif-->
                                             @endif
                                             @php
@@ -237,6 +244,9 @@
                                             @endif
                                             @if($open_activo==1)
                                                 <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
+                                            @if($paycode_activo==1)
+                                                <a href="{{ route('fichaAdeudos.verDetallePaycode', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea PC.<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @endif
                                             <!--@@endif-->
                                             @endif
@@ -273,13 +283,15 @@
                                             $fechaPago=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $adeudo->caja->pago->updated_at);
                                             $fechaHoy=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s'));
                                             //dd($fechaPago->diffInHours($fechaHoy));
+                                            $param_dias_limite_cobro_factura=App\Param::where('llave', 'dias_limite_cobro_factura')->first();
                                             @endphp
 
                                             @if(is_null($adeudo->caja->pago->uuid) and
                                                 is_null($adeudo->caja->pago->cbb) and
                                                 is_null($adeudo->caja->pago->xml) and
                                                 $mesHoy==$mesFechaPago and
-                                                $anioHoy==$anioFechaPago
+                                                $anioHoy==$anioFechaPago and
+                                                $diaHoy<=($diasEnMes-$param_dias_limite_cobro_factura->valor)
                                                 //$fechaPago->diffInHours($fechaHoy)<=72
                                                 )
                                                 <a href="{{ route('fichaAdeudos.datosFactura', array('pagoOnLine'=>$adeudo->pagoOnLine->id)) }}" class="btn btn-inverse btn-xs">

@@ -89,6 +89,15 @@ Route::get(
     )
 )->middleware('auth');
 
+Route::get(
+    '/fichaAdeudos/verDetallePaycode',
+    array(
+        'as' => 'fichaAdeudos.verDetallePaycode',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@verDetallePaycode'
+    )
+)->middleware('auth');
+
 
 Route::post(
     '/fichaAdeudos/crearCajaPagoPeticion',
@@ -105,6 +114,15 @@ Route::post(
         'as' => 'fichaAdeudos.crearCajaPagoPeticionOpenpay',
         //'middleware' => 'permission:users.updatePerfil',
         'uses' => 'FichaPagosController@crearCajaPagoPeticionOpenpay'
+    )
+)->middleware('auth');
+
+Route::post(
+    '/fichaAdeudos/crearCajaPagoPeticionPaycode',
+    array(
+        'as' => 'fichaAdeudos.crearCajaPagoPeticionPaycode',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@crearCajaPagoPeticionPaycode'
     )
 )->middleware('auth');
 
