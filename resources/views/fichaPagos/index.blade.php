@@ -278,8 +278,10 @@
                                             @php
                                             $mesHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->month;
                                             $anioHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->year;
+                                            $diaHoy=Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d'))->day;
                                             $mesFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->month;
                                             $anioFechaPago=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->year;
+                                            $diasEnMes=Carbon\Carbon::createFromFormat('Y-m-d', $adeudo->caja->pago->fecha)->daysInMonth;
                                             $fechaPago=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $adeudo->caja->pago->updated_at);
                                             $fechaHoy=Carbon\Carbon::createFromFormat('Y-m-d H:i:s', date('Y-m-d H:i:s'));
                                             //dd($fechaPago->diffInHours($fechaHoy));

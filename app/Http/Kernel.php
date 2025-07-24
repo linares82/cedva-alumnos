@@ -61,6 +61,7 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'corsMultipagos' => \App\Http\Middleware\CorsMultipagos::class,
+        'CorsOpenpay' => \App\Http\Middleware\CorsOpenpay::class,
     ];
 
     /**

@@ -17,6 +17,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 */
+
 Route::post(
     '/multipagos/successMultipagos',
     array(
@@ -33,4 +34,11 @@ Route::post(
     )
 )->middleware('corsMultipagos');
 
-
+Route::post(
+    '/fichaAdeudos/webhookChargeOpenpay',
+    array(
+        'as' => 'fichaAdeudos.webhookChargeOpenpay',
+        //'middleware' => 'permission:users.updatePerfil',
+        'uses' => 'FichaPagosController@webhookChargeOpenpay'
+    )
+)->middleware('CorsOpenpay');
