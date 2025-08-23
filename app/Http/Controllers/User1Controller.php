@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Cliente;
-use App\User;
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Hash;
+use App\User;
+use App\Cliente;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\View;
 
 class User1Controller extends Controller
@@ -25,7 +26,7 @@ class User1Controller extends Controller
     private $apiToken;
     public function __construct()
     {
-        $this->apiToken = uniqid(base64_encode(str_random(60)));
+        $this->apiToken = uniqid(base64_encode(Str::random(60)));
     }
 
 

@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\FichaPagosController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +20,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 */
 
+/*
 Route::post(
     '/multipagos/successMultipagos',
     array(
@@ -38,7 +41,37 @@ Route::post(
     '/fichaAdeudos/webhookChargeOpenpay',
     array(
         'as' => 'fichaAdeudos.webhookChargeOpenpay',
-        //'middleware' => 'permission:users.updatePerfil',
         'uses' => 'FichaPagosController@webhookChargeOpenpay'
     )
 )->middleware('CorsOpenpay');
+*/
+
+Route::prefix('fichaAdeudos')
+    ->middleware('CorsOpenpay')
+    ->controller(FichaPagosController::class)
+    ->name('fichaAdeudos.')
+    ->group(function () {
+        Route::get('/webhookChargeOpenpay', 'webhookChargeOpenpay')->name('webhookChargeOpenpay');
+    });
+Route::prefix('fichaAdeudos')
+    //->middleware('CorsOpenpay')
+    ->controller(FichaPagosController::class)
+    ->name('fichaAdeudos.')
+    ->group(function () {
+        Route::post('/webhookMattilda', 'webhookMattilda')->name('webhookMattilda');
+    });
+
+Route::prefix('fichaAdeudos')
+    ->middleware('corsMultipagos')
+    ->controller(FichaPagosController::class)
+    ->name('fichaAdeudos.')
+    ->group(function () {
+        Route::get('/successOpenpay', 'successOpenpay')->name('successOpenpay');
+    });
+Route::prefix('fichaAdeudos')
+    ->middleware('corsMultipagos')
+    ->controller(FichaPagosController::class)
+    ->name('fichaAdeudos.')
+    ->group(function () {
+        Route::get('/successMultipagos', 'successMultipagos')->name('successMultipagos');
+    });

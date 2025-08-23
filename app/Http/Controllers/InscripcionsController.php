@@ -991,7 +991,7 @@ class InscripcionsController extends Controller
                 ->orderBy('hacademicas.id')
                 //->orderBy('te.id')
                 ->get();
-        }else{
+        } else {
             $hacademicas = Hacademica::select(
                 'm.name as materia',
                 'm.codigo',
@@ -1009,7 +1009,7 @@ class InscripcionsController extends Controller
                 //->join('tpo_examens as te', 'te.id', '=', 'c.tpo_examen_id')
                 ->where('inscripcion_id', $inscripcion->id)
                 ->whereNull('hacademicas.deleted_at')
-                ->whereDate('lectivo.fin','<', $fecha_lectivo_fin)
+                ->whereDate('lectivo.fin', '<', $fecha_lectivo_fin)
                 //->whereNull('c.deleted_at')
                 ->with('cliente')
                 ->orderBy('hacademicas.id')
@@ -2757,7 +2757,7 @@ class InscripcionsController extends Controller
             ->join('materia as m', 'm.id', '=', 'hacademicas.materium_id')
             ->join('lectivos as l', 'l.id', '=', 'hacademicas.lectivo_id')
             ->where('cliente_id', $cliente->id)
-            ->where('lectivo_id', '<>', $inscripcion->lectivo_id)
+            ->where('hacademicas.lectivo_id', '<>', $inscripcion->lectivo_id)
             ->orderBy('hacademicas.id', 'Desc')
             ->whereNull('hacademicas.deleted_at')
             ->get();
@@ -2967,6 +2967,4 @@ class InscripcionsController extends Controller
             'token' => $impresion['token'],
         ));
     }
-
-
 }

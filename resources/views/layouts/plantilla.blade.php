@@ -3,6 +3,7 @@
     <head>
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
         <meta charset="utf-8" />
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>{{ config('app.name', 'Laravel') }}</title>
 
         <meta name="description" content="" />
@@ -45,7 +46,7 @@
         <!-- inline styles related to this page -->
 
         <!-- ace settings handler -->
-        <script src="assets/js/ace-extra.min.js"></script>
+        <!--<script src="assets/js/ace-extra.min.js"></script>-->
 
         <!-- HTML5shiv and Respond.js for IE8 to support HTML5 elements and media queries -->
 

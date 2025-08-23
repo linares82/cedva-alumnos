@@ -94,6 +94,7 @@
                             $open_activo=$cliente->plantel->bnd_openpay_activo;
                             $multipagos_activo=$cliente->plantel->bnd_multipagos_activo;
                             $paycode_activo=$cliente->plantel->bnd_paycode;
+                            $mattilda_activo=$cliente->plantel->bnd_mattilda;
                             //dd($opencode_activo);
 
                             $adeudos=\App\Adeudo::where('combinacion_cliente_id',$combinacion->id)
@@ -218,9 +219,12 @@
                                                 @if($open_activo==1)
                                                 <a href="{{ route('fichaAdeudos.verDetalleOpenpay', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea O.<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @endif
-                                                {{ $open_activo }}
+
                                                 @if($paycode_activo==1)
                                                 <a href="{{ route('fichaAdeudos.verDetallePaycode', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea PC.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
+                                                @if($mattilda_activo==1)
+                                                <a href="{{ route('fichaAdeudos.verDetalleMattilda', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea Mat.<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @endif
                                                 <!--@@endif-->
                                             @endif
@@ -247,6 +251,9 @@
                                                 @endif
                                             @if($paycode_activo==1)
                                                 <a href="{{ route('fichaAdeudos.verDetallePaycode', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea PC.<i class="ace-icon fa fa-credit-card"></i></a>
+                                                @endif
+                                            @if($mattilda_activo==1)
+                                                <a href="{{ route('fichaAdeudos.verDetalleMattilda', array('adeudo_pago_online_id'=>optional($adeudo->pagoOnLine)->id)) }}" class="btn btn-pink btn-xs">Pagar en linea Mat.<i class="ace-icon fa fa-credit-card"></i></a>
                                                 @endif
                                             <!--@@endif-->
                                             @endif

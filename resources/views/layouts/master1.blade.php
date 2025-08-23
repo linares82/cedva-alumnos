@@ -45,7 +45,7 @@
         <!-- inline styles related to this page -->
 
         <!-- ace settings handler -->
-        <script src="assets/js/ace-extra.min.js"></script>
+        <!--<script src="assets/js/ace-extra.min.js"></script>-->
 
         <!-- HTML5shiv and Respond.js for IE8 to support HTML5 elements and media queries -->
 
@@ -367,14 +367,15 @@
         <script type="text/javascript">
             $("button[type=submit]").click(function(){
                 $(this).prop('disabled', true);
+
                 //$(this).closest('form').submit();
                 //$('#formulario').submit();
             });
             $(document).ready(function () {
-                $("#search_form").hide();
+                /*$("#search_form").hide();
                 $("#search_btn").click(function () {
                     $("#search_form").toggle(1000);
-                });
+                });*/
                 $(".chosen").chosen({width: "100%"});
 
                 //aplica clases para el menu

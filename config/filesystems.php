@@ -55,6 +55,13 @@ return [
             'visibility' => 'public',
         ],
 
+        'mattilda' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/mattilda'),
+            'url' => env('APP_URL') . '/storage',
+            'visibility' => 'privated',
+        ],
+
         'tmp_xml' => [
             'driver' => 'local',
             'root' => storage_path('app/public/xml'),

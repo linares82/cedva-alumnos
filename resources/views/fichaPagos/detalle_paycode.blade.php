@@ -62,7 +62,7 @@
             <div class="profile-info-row">
                 <div class="profile-info-name"> F. Vencimiento (dd-mm-yyyy) </div>
                 <div class="profile-info-value">
-                     {{ $adeudo_pago_online->fecha_limite->format('d-m-Y') }}
+                     {{ date('d-m-Y',strtotime($adeudo_pago_online->fecha_limite)) }}
                 </div>
             </div>
             <div class="profile-info-row">
@@ -78,7 +78,7 @@
 
     <div class="row">
 
-        @if(!is_null(($peticionesPaycode)) and count($peticionesPaycode)>0)
+    @if(!is_null(($peticionesPaycode)) and count($peticionesPaycode)>0)
     <div class="col-sm-8 col-sm-offset-2">
         <div class="widget-box">
             <div class="widget-header">

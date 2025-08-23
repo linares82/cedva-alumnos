@@ -35,10 +35,11 @@ input{
 
     @endif
 
-    {!! Form::model($cliente, array('route' => array('fichaAdeudos.confirmarDatosFiscales', $cliente->id),'method' => 'post','id'=>'frm')) !!}
-            <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
-                <label for="curp-field">*CURP del Alumno</label>
-                {!! Form::text("curp", null, array("class" => "form-control input-sm", "id" => "curp-field", 'onkeyup'=>"javascript:this.value=this.value.toUpperCase();")) !!}
+    <form action="{{route('fichaAdeudos.confirmarDatosFiscales', $cliente->id)}}" id="frm" method="POST">
+        {{ csrf_field() }}
+        <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
+                <label for="curp">*CURP del Alumno</label>
+                <input type="text" value="{{ $cliente->curp }}" name="curp" id="curp" class="form-control input-sm" onkeyup="javascript:this.value=this.value.toUpperCase();">
                 @if($errors->has("curp"))
                 <span class="help-block">{{ $errors->first("curp") }}</span>
                 @endif
@@ -46,108 +47,131 @@ input{
             <div class="row"></div>
             <div class="col-md-12"><label>Datos Fiscales</label></div>
             <div class="form-group col-md-4 @if($errors->has('tipo_persona_id')) has-error @endif">
-                <label for="tipo_persona_id-field">*Tipo Persona</label>
-                {!! Form::select("tipo_persona_id", $tipoPersonas, null, array("class" => "form-control select_seguridad", "id" => "tipo_persona_id-field", 'style'=>'width:100%')) !!}
+                <label for="tipo_persona_id">*Tipo Persona</label>
+                <select class="form-control" id="tipo_persona_id" name="tipo_persona_id" >
+                        <option value="" style="display: none;" {{ old('tipo_persona_id', optional($cliente)->tipo_persona_id ?: '') == '' ? 'selected' : '' }} disabled selected> Seleccionar opción </option>
+                    @foreach ($tipoPersonas as $key => $tipoPersonaLabel)
+                        <option value="{{ $key }}" {{ old('tipo_persona_id', optional($cliente)->tipo_persona_id) == $key ? 'selected' : '' }}>
+                            {{ $tipoPersonaLabel }}
+                        </option>
+                    @endforeach
+                </select>
                 <div id='loading' style='display: none'><img src="{{ asset('images/ajax-loader.gif') }}" title="...Enviando" /></div>
                 @if($errors->has("tipo_persona_id"))
                 <span class="help-block">{{ $errors->first("tipo_persona_id") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('uso_factura_id')) has-error @endif">
-                <label for="uso_factura_id-field">*Uso Factura</label>
-                {!! Form::select("uso_factura_id", $usoFactura, null, array("class" => "form-control select_seguridad", "id" => "uso_factura_id-field", 'style'=>'width:100%')) !!}
+                <label for="uso_factura_id">*Uso Factura</label>
+
+                <select class="form-control" id="uso_factura_id" name="uso_factura_id" >
+                        <option value="" style="display: none;" {{ old('uso_factura_id', optional($cliente)->uso_factura_id ?: '') == '' ? 'selected' : '' }} disabled selected> Seleccionar opción </option>
+                    @foreach ($usoFactura as $key => $usoFacturaLabel)
+                        <option value="{{ $key }}" {{ old('uso_factura_id', optional($cliente)->uso_factura_id) == $key ? 'selected' : '' }}>
+                            {{ $usoFacturaLabel }}
+                        </option>
+                    @endforeach
+                </select>
+
                 @if($errors->has("uso_factura_id"))
                 <span class="help-block">{{ $errors->first("uso_factura_id") }}</span>
                 @endif
             </div>
 
             <div class="form-group col-md-4 @if($errors->has('frazon')) has-error @endif">
-                <label for="frazon-field">*Nombre o Razon Social</label>
-                {!! Form::text("frazon", null, array("class" => "form-control input-sm", "id" => "frazon-field")) !!}
+                <label for="frazon">*Nombre o Razon Social</label>
+                <input type="text" value="{{ $cliente->frazon }}" name="frazon" id="frazon" class="form-control input-sm">
                 @if($errors->has("frazon"))
                 <span class="help-block">{{ $errors->first("frazon") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('frfc')) has-error @endif" style="clear:left;">
-                <label for="frfc-field">*RFC</label>
-                {!! Form::text("frfc", null, array("class" => "form-control input-sm", "id" => "frfc-field", 'onkeyup'=>"javascript:this.value=this.value.toUpperCase();")) !!}
+                <label for="frfc">*RFC</label>
+                <input type="text" value="{{ $cliente->frfc }}" name="frfc" id="frfc" class="form-control input-sm">
                 @if($errors->has("frfc"))
                 <span class="help-block">{{ $errors->first("frfc") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fmail')) has-error @endif" >
-                <label for="fmail-field">*Correo Electronico</label>
-                {!! Form::text("fmail", null, array("class" => "form-control input-sm", "id" => "fmail-field")) !!}
+                <label for="fmail">*Correo Electronico</label>
+                <input type="text" value="{{ $cliente->fmail }}" name="fmail" id="fmail" class="form-control input-sm">
                 @if($errors->has("fmail"))
                 <span class="help-block">{{ $errors->first("fmail") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif">
-                <label for="fcalle-field">*Calle</label>
-                {!! Form::text("fcalle", null, array("class" => "form-control input-sm", "id" => "fcalle-field")) !!}
+                <label for="fcalle">*Calle</label>
+                <input type="text" value="{{ $cliente->fcalle }}" name="fcalle" id="fcalle" class="form-control input-sm">
                 @if($errors->has("fcalle"))
                 <span class="help-block">{{ $errors->first("fcalle") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fno_exterior')) has-error @endif">
-                <label for="fno_exterior-field">*No. Exterior</label>
-                {!! Form::text("fno_exterior", null, array("class" => "form-control input-sm", "id" => "fno_exterior-field")) !!}
+                <label for="fno_exterior">*No. Exterior</label>
+                <input type="text" value="{{ $cliente->fno_exterior }}" name="fno_exterior" id="fno_exterior" class="form-control input-sm">
                 @if($errors->has("fno_exterior"))
                 <span class="help-block">{{ $errors->first("fno_exterior") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fno_interior')) has-error @endif">
-                <label for="fno_interior-field">No. Interior</label>
-                {!! Form::text("fno_interior", null, array("class" => "form-control input-sm", "id" => "fno_interior-field")) !!}
+                <label for="fno_interior">No. Interior</label>
+                <input type="text" value="{{ $cliente->fno_interior }}" name="fno_interior" id="fno_interior" class="form-control input-sm">
                 @if($errors->has("fno_interior"))
                 <span class="help-block">{{ $errors->first("fno_interior") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fcolonia')) has-error @endif">
-                <label for="fcolonia-field">*Colonia</label>
-                {!! Form::text("fcolonia", null, array("class" => "form-control input-sm", "id" => "fcolonia-field")) !!}
+                <label for="fcolonia">*Colonia</label>
+                <input type="text" value="{{ $cliente->fcolonia }}" name="fcolonia" id="fcolonia" class="form-control input-sm">
                 @if($errors->has("fcolonia"))
                 <span class="help-block">{{ $errors->first("fcolonia") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fciudad')) has-error @endif">
-                <label for="fciudad-field">Ciudad</label>
-                {!! Form::text("fciudad", null, array("class" => "form-control input-sm", "id" => "fciudad-field")) !!}
+                <label for="fciudad">Ciudad</label>
+                <input type="text" value="{{ $cliente->fciudad }}" name="fciudad" id="fciudad" class="form-control input-sm">
                 @if($errors->has("fciudad"))
                 <span class="help-block">{{ $errors->first("fciudad") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fmunicipio')) has-error @endif">
-                <label for="fmunicipio-field">*Municipio</label>
-                {!! Form::text("fmunicipio", null, array("class" => "form-control input-sm", "id" => "fmunicipio-field")) !!}
+                <label for="fmunicipio">*Municipio</label>
+                <input type="text" value="{{ $cliente->fmunicipio }}" name="fmunicipio" id="fmunicipio" class="form-control input-sm">
                 @if($errors->has("fmunicipio"))
                 <span class="help-block">{{ $errors->first("fmunicipio") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('festado')) has-error @endif">
-                <label for="festado-field">*Estado</label>
-                {!! Form::text("festado", null, array("class" => "form-control input-sm", "id" => "festado-field")) !!}
+                <label for="festado">*Estado</label>
+                <input type="text" value="{{ $cliente->festado }}" name="festado" id="festado" class="form-control input-sm">
                 @if($errors->has("festado"))
                 <span class="help-block">{{ $errors->first("festado") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fpais')) has-error @endif">
-                <label for="fpais-field">*Pais</label>
-                {!! Form::text("fpais", null, array("class" => "form-control input-sm", "id" => "fpais-field")) !!}
+                <label for="fpais">*Pais</label>
+                <input type="text" value="{{ $cliente->fpais }}" name="fpais" id="fpais" class="form-control input-sm">
                 @if($errors->has("fpais"))
                 <span class="help-block">{{ $errors->first("fpais") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fcp')) has-error @endif">
-                <label for="fcp-field">*C.P.</label>
-                {!! Form::text("fcp", null, array("class" => "form-control input-sm", "id" => "fcp-field")) !!}
+                <label for="fcp">*C.P.</label>
+                <input type="text" value="{{ $cliente->fcp }}" name="fcp" id="fcp" class="form-control input-sm">
                 @if($errors->has("fcp"))
                 <span class="help-block">{{ $errors->first("fcp") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('regimen_fiscal_id')) has-error @endif">
-                <label for="regimen_fiscal_id-field">*Regimen Fiscal</label>
-                {!! Form::select("regimen_fiscal_id", $regimenFiscal, null, array("class" => "form-control select_seguridad", "id" => "regimen_fiscal_id-field", 'style'=>'width:100%')) !!}
+                <label for="regimen_fiscal_id">*Regimen Fiscal</label>
+                <select class="form-control" id="regimen_fiscal_id" name="regimen_fiscal_id" >
+                        <option value="" style="display: none;" {{ old('regimen_fiscal_id', optional($cliente)->regimen_fiscal_id ?: '') == '' ? 'selected' : '' }} disabled selected> Seleccionar opción </option>
+                    @foreach ($regimenFiscal as $key => $regimenFiscalLabel)
+                        <option value="{{ $key }}" {{ old('regimen_fiscal_id', optional($cliente)->regimen_fiscal_id) == $key ? 'selected' : '' }}>
+                            {{ $regimenFiscalLabel }}
+                        </option>
+                    @endforeach
+                </select>
                 @if($errors->has("regimen_fiscal_id"))
                 <span class="help-block">{{ $errors->first("regimen_fiscal_id") }}</span>
                 @endif
@@ -160,8 +184,8 @@ input{
                 <button type="submit" class="btn btn-primary" id="bootbox-confirm">Guardar</button>
                 <a class="btn btn-link pull-right" href="{{ route('fichaAdeudos.index') }}"><i class="glyphicon glyphicon-backward"></i>  Regresar</a>
             </div>
+    </form>
 
-            {!! Form::close() !!}
 </div>
 @endsection
 @push('scripts')
@@ -169,7 +193,7 @@ input{
 $(document).ready(function(){
     cmbUsoFactura();
 
-    $("#tipo_persona_id-field").change(function() {
+    $("#tipo_persona_id").change(function() {
         cmbUsoFactura();
    });
 
@@ -178,22 +202,22 @@ $(document).ready(function(){
                   url: '{{ route("fichaAdeudos.cmbUsoFactura") }}',
                   type: 'GET',
                   data: {
-                      'tipo_persona_id':$('#tipo_persona_id-field option:selected').val(),
-                      'uso_factura_id':$('#uso_factura_id-field option:selected').val(),
+                      'tipo_persona_id':$('#tipo_persona_id option:selected').val(),
+                      'uso_factura_id':$('#uso_factura_id option:selected').val(),
                   },
                   dataType: 'json',
                   beforeSend : function(){$("#loading").show();},
                   complete : function(){$("#loading").hide();},
                   success: function(data){
                       //$example.select2("destroy");
-                      $('#uso_factura_id-field').html('');
+                      $('#uso_factura_id').html('');
 
-                      //$('#especialidad_id-field').empty();
-                      $('#uso_factura_id-field').append($('<option></option>').text('Seleccionar').val('0'));
+                      //$('#especialidad_id').empty();
+                      $('#uso_factura_id').append($('<option></option>').text('Seleccionar').val('0'));
 
                       $.each(data, function(i) {
                           //alert(data[i].name);
-                          $('#uso_factura_id-field').append("<option "+data[i].selectec+" value=\""+data[i].id+"\">"+data[i].name+"<\/option>");
+                          $('#uso_factura_id').append("<option "+data[i].selectec+" value=\""+data[i].id+"\">"+data[i].name+"<\/option>");
                       });
                   }
               });
@@ -201,20 +225,20 @@ $(document).ready(function(){
 
     $("#bootbox-confirm").on(ace.click_event, function(e) {
         e.preventDefault();
-        let tipo_persona=$("#tipo_persona_id-field option:selected").text();
-        let uso_factura=$("#uso_factura_id-field option:selected").text();
-        let razon=$("#frazon-field").val();
-        let rfc=$("#frfc-field").val();
-        let calle=$("#fcalle-field").val();
-        let no_exterior=$("#fno_exterior-field").val();
-        let no_interior=$("#fno_interior-field").val();
-        let colonia=$("#fcolonia-field").val();
-        let ciudad=$("#fciudad-field").val();
-        let municipio=$("#fmunicipio-field").val();
-        let estado=$("#festado-field").val();
-        let pais=$("#fpais-field").val();
-        let cp=$("#fcp-field").val();
-        let mail=$("#fmail-field").val();
+        let tipo_persona=$("#tipo_persona_id option:selected").text();
+        let uso_factura=$("#uso_factura_id option:selected").text();
+        let razon=$("#frazon").val();
+        let rfc=$("#frfc").val();
+        let calle=$("#fcalle").val();
+        let no_exterior=$("#fno_exterior").val();
+        let no_interior=$("#fno_interior").val();
+        let colonia=$("#fcolonia").val();
+        let ciudad=$("#fciudad").val();
+        let municipio=$("#fmunicipio").val();
+        let estado=$("#festado").val();
+        let pais=$("#fpais").val();
+        let cp=$("#fcp").val();
+        let mail=$("#fmail").val();
 
         //console.log(forma_pago);
 

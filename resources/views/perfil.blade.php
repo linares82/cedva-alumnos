@@ -8,19 +8,19 @@
             <div class="panel panel-default">
                 <div class="panel-heading">Actualizar</div>
                 <div class="panel-body">
-                    {!! Form::model($user, array('route' => array('users.updatePerfil'),'method' => 'post')) !!}
-                        {{ csrf_field() }}
+                    <form action="{{route('users.updatePerfil', $user->id)}}" id="frm" method="POST">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}" />
                         <div class="form-group col-md-6 @if($errors->has('email')) has-error @endif">
-                            <label for="email-field">Mail</label>
-                            {!! Form::text("email", null, array("class" => "form-control input-sm", "id" => "email-field")) !!}
-                            {!! Form::hidden("id", null, array("class" => "form-control input-sm", "id" => "id-field")) !!}
+                            <label for="email">Mail</label>
+                            <input type="text" value="{{ $user->email }}" name="email" id="email" class="form-control input-sm">
+                            <input type="hidden" value="{{ $user->id }}" name="id" id="id" class="form-control input-sm">
                             @if($errors->has("email"))
                                 <span class="help-block">{{ $errors->first("email") }}</span>
                             @endif
                         </div>
                         <div class="form-group col-md-6 @if($errors->has('password')) has-error @endif">
-                            <label for="password1-field">Password</label>
-                            {!! Form::text("password1", null, array("class" => "form-control input-sm", "id" => "password1-field")) !!}
+                            <label for="password1">Password</label>
+                            <input type="text" value="{{ $user->password1 }}" name="password1" id="password1" class="form-control input-sm">
                             @if($errors->has("password"))
                                 <span class="help-block">{{ $errors->first("password") }}</span>
                             @endif
@@ -33,7 +33,7 @@
                                 <a class="btn btn-danger" href="/">Cancelar</a>
                             </div>
                         </div>
-                    {!! Form::close() !!}
+                    </form>
                 </div>
             </div>
         </div>

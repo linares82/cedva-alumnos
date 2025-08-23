@@ -62,7 +62,7 @@
             <div class="profile-info-row">
                 <div class="profile-info-name"> F. Vencimiento (dd-mm-yyyy) </div>
                 <div class="profile-info-value">
-                     {{ $adeudo_pago_online->fecha_limite->format('d-m-Y') }}
+                     {{ date('d-m-Y',strtotime($adeudo_pago_online->fecha_limite)) }}
                 </div>
             </div>
             <div class="profile-info-row">
@@ -187,21 +187,21 @@
                             <input type="hidden" name="token_3d_secure" id="token_3d_secure">
                             <div id="loading_seguridad" style="display:none;"><span class="text-success">Protegiendo informacion ...</span></div>
                             <label for="name">Nombre(s)</label>
-                            <input type="text"  value="{{ $adeudo_pago_online->cliente->nombre }} {{ $adeudo_pago_online->cliente->nombre2 }}" id="name" placeholder="Nombre(s)" class="col-xs-12 col-sm-12">
+                            <input type="text"  value="{{ $adeudo_pago_online->cliente->nombre }} {{ $adeudo_pago_online->cliente->nombre2 }}" id="name" placeholder="Nombre(s)" style="width:100%;">
                         </div>
                         <div class="col-sm-12">
                         <label for="last_name">Apellidos</label>
-                        <input type="text" value="{{ $adeudo_pago_online->cliente->ape_paterno }} {{ $adeudo_pago_online->cliente->ape_materno }}" id="last_name" placeholder="Apellidos" class="col-xs-12 col-sm-12">
+                        <input type="text" value="{{ $adeudo_pago_online->cliente->ape_paterno }} {{ $adeudo_pago_online->cliente->ape_materno }}" id="last_name" placeholder="Apellidos" style="width:100%;">
                         </div>
                         <div class="col-sm-12">
                         <label for="phone_number">Teléfono</label>
-                        <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="Teléfono" class="col-xs-12 col-sm-12">
+                        <input type="text" value="{{ $adeudo_pago_online->cliente->tel_fijo }}" id="phone_number"  placeholder="Teléfono" style="width:100%;">
                         </div>
                         <div class="col-sm-12">
                         <label for="email">Email</label>
-                        <input type="text" value="{{ $adeudo_pago_online->cliente->mail }}" id="email" placeholder="email" class="col-xs-12 col-sm-12">
+                        <input type="text" value="{{ $adeudo_pago_online->cliente->mail }}" id="email" placeholder="email" style="width:100%;" >
                         </div>
-                        <div class="col-lg-6">
+                        <div class="col-sm-12">
                             Transacciones realizadas vía: <br>
                             <img src="{{asset('img/openpay/openpay.png')}}" alt="Logo Openpay">
                         </div>

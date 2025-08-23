@@ -42,7 +42,7 @@
             <div class="profile-info-row">
                 <div class="profile-info-name"> F. Vencimiento (dd-mm-yyyy) </div>
                 <div class="profile-info-value">
-                     {{ $adeudo_pago_online->fecha_limite->format('d-m-Y') }}
+                    {{ date('d-m-Y',strtotime($adeudo_pago_online->fecha_limite)) }}
                 </div>
             </div>
             <div class="profile-info-row">

@@ -94,6 +94,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->where('st_plantel_
         <tr>
             <td colspan="2">
                 Atendido por: En linea
+                Forma Pago: {{ $caja->formaPago->name }}
             </td>
         </tr>
         <tr>
@@ -274,6 +275,7 @@ $sucursales=App\Plantel::where('rfc',$cliente->plantel->rfc)->where('st_plantel_
     <tr>
         <td colspan="2">
             Atendido por: En linea
+            Forma Pago: {{ $caja->formaPago->name }}
         </td>
     </tr>
     <tr>
