@@ -368,7 +368,8 @@ function enviarDatos(forma_pago,first_name,paternal_surname,maternal_surname,num
                             "cvv2": cvv2,
                             'expiration_month': expiration_month,
                             'expiration_year': expiration_year,
-                            'plantel':{{ $plantel->id }}
+                            'plantel':{{ $plantel->id }},
+                            'external_identifier':{{ $peticionMattilda->id }}
                         },
                         dataType: 'json',
                         beforeSend : function(){$("#loading13").show();},

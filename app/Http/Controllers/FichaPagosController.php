@@ -213,7 +213,11 @@ class FichaPagosController extends Controller
             //$adeudo_pago_online = AdeudoPagoOnLine::where('adeudo_id', $adeudo->id)->first();
             //dd($adeudo_pago_online);
 
-            if ((!is_null($adeudo_pago_online) and date('Y-m-d', strtotime($adeudo_pago_online->updated_at)) <> Date('Y-m-d')) or is_null($adeudo_pago_online)) {
+            if (
+                (!is_null($adeudo_pago_online) and date('Y-m-d', strtotime($adeudo_pago_online->updated_at)) <> Date('Y-m-d')) or
+                is_null($adeudo_pago_online) or
+                ($adeudo_pago_online->adeudo->caja_id <> 0 and $adeudo_pago_online->pago_id == 0)
+            ) {
                 if ($adeudo->pagado_bnd == 1) {
 
                     if (is_null($adeudo_pago_online)) {
@@ -3255,6 +3259,17 @@ class FichaPagosController extends Controller
         $request->validate($rules, $customMessages);
         //dd($v);
         $adeudoPagoOnLine = AdeudoPagoOnLine::find($id);
+        $adeudoPagoOnLine->load([
+            'adeudo',
+            'cliente',
+            'pago',
+            'caja',
+            'caja.cajaLn',
+            'caja.cajaLn.cajaConcepto',
+            'caja.plantel',
+            'caja.plantel.matriz'
+        ]);
+
         $adeudo = $adeudoPagoOnLine->adeudo;
         $nivelEducativoSat = NivelEducativoSat::find($adeudo->combinacionCliente->grado->nivel_educativo_sat_id);
         $cliente = $adeudoPagoOnLine->cliente;
@@ -4888,7 +4903,7 @@ class FichaPagosController extends Controller
             "country" => "MX",
             'intent' => 'capture',
             "buyerExternalIdentifier" => $adeudo_pago_online->cliente_id,
-            "externalIdentifier" => $peticionMattilda->id,
+            "external_identifier" => strval($peticionMattilda->id),
             /*"cartItems" => [
                 [
                     "name" => $adeudo_pago_online->adeudo->cajaConcepto->name,

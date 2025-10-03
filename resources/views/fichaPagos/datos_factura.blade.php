@@ -49,7 +49,7 @@ input{
             {{ csrf_field() }}
         <div class="form-group col-md-4 @if($errors->has('curp')) has-error @endif">
                 <label for="curp">*CURP del Alumno</label>
-                <input type="text" value="{{ $cliente->curp }}" name="curp" id="curp" class="form-control input-sm" onkeyup="javascript:this.value=this.value.toUpperCase();">
+                <input type="text" value="{{ $cliente->curp }}" name="curp" id="curp-field" class="form-control input-sm" onkeyup="javascript:this.value=this.value.toUpperCase();">
                 @if($errors->has("curp"))
                 <span class="help-block">{{ $errors->first("curp") }}</span>
                 @endif
@@ -58,7 +58,7 @@ input{
             <div class="col-md-12"><label>Datos Fiscales</label></div>
             <div class="form-group col-md-4 @if($errors->has('tipo_persona_id')) has-error @endif">
                 <label for="tipo_persona_id">*Tipo Persona</label>
-                <select class="form-control" id="tipo_persona_id" name="tipo_persona_id" >
+                <select class="form-control" id="tipo_persona_id-field" name="tipo_persona_id" >
                         <option value="" style="display: none;" {{ old('tipo_persona_id', optional($cliente)->tipo_persona_id ?: '') == '' ? 'selected' : '' }} disabled selected> Seleccionar opción </option>
                     @foreach ($tipoPersonas as $key => $tipoPersonaLabel)
                         <option value="{{ $key }}" {{ old('tipo_persona_id', optional($cliente)->tipo_persona_id) == $key ? 'selected' : '' }}>
@@ -74,7 +74,7 @@ input{
             <div class="form-group col-md-4 @if($errors->has('uso_factura_id')) has-error @endif">
                 <label for="uso_factura_id">*Uso Factura</label>
 
-                <select class="form-control" id="uso_factura_id" name="uso_factura_id" >
+                <select class="form-control" id="uso_factura_id-field" name="uso_factura_id" >
                         <option value="" style="display: none;" {{ old('uso_factura_id', optional($cliente)->uso_factura_id ?: '') == '' ? 'selected' : '' }} disabled selected> Seleccionar opción </option>
                     @foreach ($usoFactura as $key => $usoFacturaLabel)
                         <option value="{{ $key }}" {{ old('uso_factura_id', optional($cliente)->uso_factura_id) == $key ? 'selected' : '' }}>
@@ -90,91 +90,91 @@ input{
 
             <div class="form-group col-md-4 @if($errors->has('frazon')) has-error @endif">
                 <label for="frazon">*Nombre o Razon Social</label>
-                <input type="text" value="{{ $cliente->frazon }}" name="frazon" id="frazon" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->frazon }}" name="frazon" id="frazon-field" class="form-control input-sm">
                 @if($errors->has("frazon"))
                 <span class="help-block">{{ $errors->first("frazon") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('frfc')) has-error @endif" style="clear:left;">
                 <label for="frfc">*RFC</label>
-                <input type="text" value="{{ $cliente->frfc }}" name="frfc" id="frfc" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->frfc }}" name="frfc" id="frfc-field" class="form-control input-sm">
                 @if($errors->has("frfc"))
                 <span class="help-block">{{ $errors->first("frfc") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fmail')) has-error @endif" >
                 <label for="fmail">*Correo Electronico</label>
-                <input type="text" value="{{ $cliente->fmail }}" name="fmail" id="fmail" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fmail }}" name="fmail" id="fmail-field" class="form-control input-sm">
                 @if($errors->has("fmail"))
                 <span class="help-block">{{ $errors->first("fmail") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fcalle')) has-error @endif">
                 <label for="fcalle">*Calle</label>
-                <input type="text" value="{{ $cliente->fcalle }}" name="fcalle" id="fcalle" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fcalle }}" name="fcalle" id="fcalle-field" class="form-control input-sm">
                 @if($errors->has("fcalle"))
                 <span class="help-block">{{ $errors->first("fcalle") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fno_exterior')) has-error @endif">
                 <label for="fno_exterior">*No. Exterior</label>
-                <input type="text" value="{{ $cliente->fno_exterior }}" name="fno_exterior" id="fno_exterior" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fno_exterior }}" name="fno_exterior" id="fno_exterior-field" class="form-control input-sm">
                 @if($errors->has("fno_exterior"))
                 <span class="help-block">{{ $errors->first("fno_exterior") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fno_interior')) has-error @endif">
                 <label for="fno_interior">No. Interior</label>
-                <input type="text" value="{{ $cliente->fno_interior }}" name="fno_interior" id="fno_interior" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fno_interior }}" name="fno_interior" id="fno_interior-field" class="form-control input-sm">
                 @if($errors->has("fno_interior"))
                 <span class="help-block">{{ $errors->first("fno_interior") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fcolonia')) has-error @endif">
                 <label for="fcolonia">*Colonia</label>
-                <input type="text" value="{{ $cliente->fcolonia }}" name="fcolonia" id="fcolonia" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fcolonia }}" name="fcolonia" id="fcolonia-field" class="form-control input-sm">
                 @if($errors->has("fcolonia"))
                 <span class="help-block">{{ $errors->first("fcolonia") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fciudad')) has-error @endif">
                 <label for="fciudad">Ciudad</label>
-                <input type="text" value="{{ $cliente->fciudad }}" name="fciudad" id="fciudad" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fciudad }}" name="fciudad" id="fciudad-field" class="form-control input-sm">
                 @if($errors->has("fciudad"))
                 <span class="help-block">{{ $errors->first("fciudad") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fmunicipio')) has-error @endif">
                 <label for="fmunicipio">*Municipio</label>
-                <input type="text" value="{{ $cliente->fmunicipio }}" name="fmunicipio" id="fmunicipio" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fmunicipio }}" name="fmunicipio" id="fmunicipio-field" class="form-control input-sm">
                 @if($errors->has("fmunicipio"))
                 <span class="help-block">{{ $errors->first("fmunicipio") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('festado')) has-error @endif">
                 <label for="festado">*Estado</label>
-                <input type="text" value="{{ $cliente->festado }}" name="festado" id="festado" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->festado }}" name="festado" id="festado-field" class="form-control input-sm">
                 @if($errors->has("festado"))
                 <span class="help-block">{{ $errors->first("festado") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fpais')) has-error @endif">
                 <label for="fpais">*Pais</label>
-                <input type="text" value="{{ $cliente->fpais }}" name="fpais" id="fpais" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fpais }}" name="fpais" id="fpais-field" class="form-control input-sm">
                 @if($errors->has("fpais"))
                 <span class="help-block">{{ $errors->first("fpais") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('fcp')) has-error @endif">
                 <label for="fcp">*C.P.</label>
-                <input type="text" value="{{ $cliente->fcp }}" name="fcp" id="fcp" class="form-control input-sm">
+                <input type="text" value="{{ $cliente->fcp }}" name="fcp" id="fcp-field" class="form-control input-sm">
                 @if($errors->has("fcp"))
                 <span class="help-block">{{ $errors->first("fcp") }}</span>
                 @endif
             </div>
             <div class="form-group col-md-4 @if($errors->has('regimen_fiscal_id')) has-error @endif">
                 <label for="regimen_fiscal_id">*Regimen Fiscal</label>
-                <select class="form-control" id="regimen_fiscal_id" name="regimen_fiscal_id" >
+                <select class="form-control" id="regimen_fiscal_id-field" name="regimen_fiscal_id" >
                         <option value="" style="display: none;" {{ old('regimen_fiscal_id', optional($cliente)->regimen_fiscal_id ?: '') == '' ? 'selected' : '' }} disabled selected> Seleccionar opción </option>
                     @foreach ($regimenFiscal as $key => $regimenFiscalLabel)
                         <option value="{{ $key }}" {{ old('regimen_fiscal_id', optional($cliente)->regimen_fiscal_id) == $key ? 'selected' : '' }}>

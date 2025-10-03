@@ -174,8 +174,15 @@
             environment: "{{ $mattildaAmbiente }}", //valores posibles sandbox/production?
             merchantAccountId: "cedva",
             intent: "capture",
+            onBeforeTransaction: async () => {
+                // Optionally fetch or compute your external identifier (e.g. from backend)
+                return {
+                externalIdentifier: "{{ $peticionMattilda->id }}",
+                buyerExternalIdentifier: "{{ $adeudo_pago_online->cliente_id }}",
+                // you could also modify metadata, token, etc.
+                };
+            },
             onComplete: (transaction) => {
-                console.log(transaction);
                 $data={
                     transaction_id: transaction.id,
                     amount: transaction.amount,
